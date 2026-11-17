@@ -62,7 +62,7 @@
     </div>
     <div>
       <label for="model">Model name</label>
-      <input id="model" type="text" autocomplete="off" spellcheck="false">
+      <input id="model" type="text" list="modelList" autocomplete="off" spellcheck="false"><datalist id="modelList"></datalist>
     </div>
     <div>
       <label for="key">API key</label>
@@ -76,6 +76,7 @@
   <div class="btns">
     <button id="save">Save</button>
     <button id="forget" class="secondary">Forget key</button>
+    <button id="loadModels" class="secondary">Load available models</button>
   </div>
   <p class="small">Provider, model and key are stored in this browser only (localStorage) and sent straight to the provider with each question. The key is never in this file. Use only free-tier keys so nothing is charged. If a key ever reaches GitHub, delete it in the provider's dashboard at once and make a new one.</p>
   <div id="settingsMsg" class="small"></div>
@@ -137,7 +138,7 @@ var URLS = {
   plan:"https://bdaib-hub.pages.dev/data/winter/plan.md",
   history:"https://bdaib-hub.pages.dev/data/winter/history.csv"
 };
-var DEFAULT_MODELS = {openai:"gpt-4o-mini",anthropic:"claude-haiku-4-5",gemini:"gemini-2.5-flash",groq:"llama-3.3-70b-versatile"};
+var DEFAULT_MODELS = {openai:"gpt-4o-mini",anthropic:"claude-haiku-4-5",gemini:"gemini-2.5-flash",groq:"openai/gpt-oss-120b"};
 var LS = {provider:"ww_provider",model:"ww_model",key:"ww_key",allowance:"ww_allowance",used:"ww_used"};
 
 var state = {tonight:null,routes:null,forecast:null,plan:"",history:null,fetchedAt:null};
@@ -416,12 +417,15 @@ function showUsage(res,provider){
 function loadSettings(){
   var p=ls(LS.provider)||"openai";
   $("provider").value=p;
-  $("model").value=ls(LS.model)||DEFAULT_MODELS[p];
+  var m=ls(LS.model);
+  if(p==="groq"&&(m==="llama-3.3-70b-versatile"||m==="llama-3.1-8b-instant")){m=DEFAULT_MODELS.groq;lsSet(LS.model,m);}
+  $("model").value=m||DEFAULT_MODELS[p];
   $("key").value=ls(LS.key)||"";
   $("allowance").value=ls(LS.allowance)||"";
 }
 $("provider").addEventListener("change",function(){
   $("model").value=DEFAULT_MODELS[$("provider").value];
+  $("modelList").innerHTML="";
 });
 $("save").addEventListener("click",function(){
   var ok=lsSet(LS.provider,$("provider").value)&&lsSet(LS.model,$("model").value.trim())&&lsSet(LS.key,$("key").value.trim())&&lsSet(LS.allowance,$("allowance").value.trim());
@@ -451,6 +455,29 @@ $("send").addEventListener("click",function(){
     $("answer").textContent="";
     showErr($("answerErr"),errText(e));
   }).then(function(){$("send").disabled=false;});
+});
+
+/* ---------- Load available models ---------- */
+$("loadModels").addEventListener("click",function(){
+  var p=$("provider").value,k=$("key").value.trim(),msg=$("settingsMsg");
+  if(!k){msg.textContent="Paste your key first, then load the model list.";return;}
+  var url,h={};
+  if(p==="openai"||p==="groq"){url=p==="openai"?"https://api.openai.com/v1/models":"https://api.groq.com/openai/v1/models";h["Authorization"]="Bearer "+k;}
+  else if(p==="anthropic"){url="https://api.anthropic.com/v1/models?limit=100";h["x-api-key"]=k;h["anthropic-version"]="2023-06-01";h["anthropic-dangerous-direct-browser-access"]="true";}
+  else{url="https://generativelanguage.googleapis.com/v1beta/models?pageSize=100";h["x-goog-api-key"]=k;}
+  msg.textContent="Loading models…";
+  fetch(url,{headers:h}).then(function(r){
+    return r.text().then(function(t){
+      if(!r.ok) throw new Error("HTTP "+r.status+" "+r.statusText+" from "+url+"\n\n"+t);
+      return JSON.parse(t);
+    });
+  }).then(function(j){
+    var list=(j.data||j.models||[]).filter(function(x){
+      return p!=="gemini"||(x.supportedGenerationMethods||[]).indexOf("generateContent")>-1;
+    }).map(function(x){return (x.id||x.name||"").replace(/^models\//,"");}).filter(Boolean).sort();
+    $("modelList").innerHTML=list.map(function(n){return '<option value="'+esc(n)+'">';}).join("");
+    msg.textContent=list.length+" models available to your key. Click the model box to pick one, then press Save.";
+  }).catch(function(e){msg.innerHTML='<div class="err">'+esc(errText(e))+"</div>";});
 });
 
 $("refresh").addEventListener("click",loadAll);

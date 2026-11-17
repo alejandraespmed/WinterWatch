@@ -1,1074 +1,462 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Winter Watch — Council Roads Decision Support</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --surface: #1e293b;
-      --surface-alt: #273549;
-      --border: #334155;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent: #38bdf8;
-      --accent-hover: #0284c7;
-      --danger: #ef4444;
-      --danger-bg: rgba(239, 68, 68, 0.15);
-      --warning: #f59e0b;
-      --warning-bg: rgba(245, 158, 11, 0.15);
-      --success: #10b981;
-      --success-bg: rgba(16, 185, 129, 0.15);
-      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: var(--sans);
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      padding: 1rem;
-    }
-
-    .container {
-      max-width: 1320px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
-
-    header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 0.75rem;
-      gap: 0.75rem;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 1.5rem;
-      letter-spacing: -0.02em;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .badge {
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 0.2rem 0.55rem;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .badge-internal { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning); }
-    .badge-advisory { background: var(--surface-alt); color: var(--accent); border: 1px solid var(--border); }
-
-    details.settings-panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
-    }
-    details.settings-panel summary {
-      cursor: pointer;
-      font-weight: 600;
-      color: var(--accent);
-      user-select: none;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .settings-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 0.75rem;
-      margin-top: 1rem;
-      align-items: end;
-    }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-    }
-    label {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      font-weight: 600;
-    }
-    select, input, textarea {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 0.55rem 0.75rem;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 0.9rem;
-    }
-    select:focus, input:focus, textarea:focus {
-      outline: 2px solid var(--accent);
-      border-color: transparent;
-    }
-    .btn-row {
-      display: flex;
-      gap: 0.5rem;
-    }
-    button {
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 0.875rem;
-      padding: 0.55rem 1rem;
-      border-radius: 6px;
-      border: 1px solid transparent;
-      transition: background 0.15s;
-    }
-    .btn-primary {
-      background: var(--accent);
-      color: #0f172a;
-    }
-    .btn-primary:hover { background: var(--accent-hover); color: #fff; }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-secondary {
-      background: var(--surface-alt);
-      color: var(--text);
-      border-color: var(--border);
-    }
-    .btn-secondary:hover { background: #334155; }
-    .btn-danger {
-      background: var(--danger-bg);
-      color: var(--danger);
-      border-color: var(--danger);
-    }
-    .btn-danger:hover { background: var(--danger); color: #fff; }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1rem;
-    }
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.75rem;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-    .card-header h2 {
-      margin: 0;
-      font-size: 1.05rem;
-      color: var(--text);
-    }
-
-    .query-box {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    .quick-prompts {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-    }
-    .chip {
-      background: var(--surface-alt);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 0.78rem;
-      padding: 0.3rem 0.65rem;
-      border-radius: 999px;
-      cursor: pointer;
-    }
-    .chip:hover { color: var(--text); border-color: var(--accent); }
-
-    .query-controls {
-      display: flex;
-      gap: 0.75rem;
-      align-items: stretch;
-    }
-    .query-controls textarea {
-      flex: 1;
-      min-height: 74px;
-      resize: vertical;
-    }
-
-    .error-banner {
-      display: none;
-      background: var(--danger-bg);
-      border: 1px solid var(--danger);
-      color: #fecaca;
-      padding: 0.85rem;
-      border-radius: 6px;
-      font-family: var(--mono);
-      font-size: 0.82rem;
-      white-space: pre-wrap;
-      word-break: break-word;
-      margin-top: 0.75rem;
-    }
-
-    .ai-output {
-      display: none;
-      margin-top: 0.75rem;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-left: 4px solid var(--accent);
-      border-radius: 6px;
-      padding: 1rem;
-      white-space: pre-wrap;
-      font-size: 0.94rem;
-      line-height: 1.6;
-    }
-
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 1rem;
-    }
-    .col-12 { grid-column: span 12; }
-    .col-7 { grid-column: span 7; }
-    .col-5 { grid-column: span 5; }
-    .col-6 { grid-column: span 6; }
-
-    @media (max-width: 980px) {
-      .col-7, .col-5, .col-6 { grid-column: span 12; }
-    }
-
-    .table-wrap {
-      overflow-x: auto;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.84rem;
-    }
-    th, td {
-      text-align: left;
-      padding: 0.5rem 0.6rem;
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-    th {
-      color: var(--text-muted);
-      font-weight: 600;
-      background: var(--surface-alt);
-    }
-    tr:hover td { background: rgba(255, 255, 255, 0.02); }
-
-    .pill {
-      display: inline-block;
-      padding: 0.12rem 0.45rem;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-    .pill-risk { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(239,68,68,0.4); }
-    .pill-watch { background: var(--warning-bg); color: var(--warning); border: 1px solid rgba(245,158,11,0.4); }
-    .pill-clear { background: var(--success-bg); color: var(--success); border: 1px solid rgba(16,185,129,0.4); }
-
-    .plan-box {
-      max-height: 310px;
-      overflow-y: auto;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 0.75rem;
-      font-size: 0.82rem;
-      white-space: pre-wrap;
-      font-family: var(--mono);
-      color: #cbd5e1;
-    }
-
-    .kpi-strip {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 0.75rem;
-      margin-bottom: 1rem;
-    }
-    .kpi {
-      background: var(--surface-alt);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 0.65rem 0.85rem;
-    }
-    .kpi .label { font-size: 0.75rem; color: var(--text-muted); }
-    .kpi .val { font-size: 1.25rem; font-weight: 700; margin-top: 0.15rem; }
-
-    .status-footer {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      padding-top: 0.25rem;
-    }
-    .mono { font-family: var(--mono); }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Winter Watch – Council Roads Team</title>
+<style>
+  :root{--bg:#f4f6f9;--card:#fff;--ink:#1b2430;--mute:#5b6675;--line:#d8dee7;--accent:#0b5cad;--warn:#b42318;--ok:#067647;--amber:#b54708}
+  @media (prefers-color-scheme:dark){:root{--bg:#10151c;--card:#18202a;--ink:#e6ebf2;--mute:#9aa7b8;--line:#2a3544;--accent:#6aa9ff;--warn:#ff8a80;--ok:#5fd39a;--amber:#f5b25c}}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{padding:16px 20px;border-bottom:1px solid var(--line);background:var(--card)}
+  header h1{margin:0;font-size:20px}
+  header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+  main{max-width:1150px;margin:0 auto;padding:16px;display:grid;gap:16px}
+  section,details.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  h2{font-size:16px;margin:0 0 8px}
+  summary{cursor:pointer;font-weight:600}
+  label{display:block;font-size:13px;color:var(--mute);margin:10px 0 3px}
+  input,select,textarea,button{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+  input,select,textarea{width:100%}
+  textarea{min-height:90px;resize:vertical}
+  button{cursor:pointer;background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.secondary{background:transparent;color:var(--ink);border-color:var(--line)}
+  button:disabled{opacity:.5;cursor:wait}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .row>div{flex:1;min-width:180px}
+  .btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--mute);font-weight:600}
+  .flag{font-weight:600}.flag.hi{color:var(--warn)}.flag.mid{color:var(--amber)}.flag.lo{color:var(--ok)}
+  .small{font-size:12px;color:var(--mute)}
+  .err{border:1px solid var(--warn);color:var(--warn);background:transparent;border-radius:6px;padding:8px 10px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;margin-top:8px}
+  .answer{white-space:pre-wrap;word-break:break-word;margin-top:10px}
+  .usage{margin-top:10px;padding:8px 10px;border:1px dashed var(--line);border-radius:6px;font-size:13px}
+  pre.plan{white-space:pre-wrap;max-height:320px;overflow:auto;font-size:12.5px;background:var(--bg);padding:10px;border-radius:6px}
+  .notice{font-size:13px;color:var(--mute);border-left:3px solid var(--accent);padding-left:10px}
+</style>
 </head>
 <body>
-<div class="container">
-  <header>
+<header>
+  <h1>Winter Watch</h1>
+  <p>Decision support for the council roads team. It recommends; the Duty Engineer decides.</p>
+</header>
+
+<main>
+
+<!-- SETTINGS -->
+<details class="card" id="settings">
+  <summary>Settings (provider, model, API key)</summary>
+  <div class="row">
     <div>
-      <h1>
-        Winter Watch
-        <span class="badge badge-internal">Council Internal</span>
-        <span class="badge badge-advisory">Advisory Only — Duty Engineer Decides</span>
-      </h1>
+      <label for="provider">Provider</label>
+      <select id="provider">
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic</option>
+        <option value="gemini">Google Gemini</option>
+        <option value="groq">Groq</option>
+      </select>
     </div>
-    <button class="btn-secondary" id="refreshBtn" type="button">↻ Refresh Live Data</button>
-  </header>
-
-  <!-- Collapsible Settings Panel -->
-  <details class="settings-panel" id="settingsPanel">
-    <summary>
-      <span>API &amp; Model Settings</span>
-      <span id="keyStatusBadge" style="font-size: 0.8rem; color: var(--text-muted);">No key saved</span>
-    </summary>
-    <div class="settings-grid">
-      <div class="field">
-        <label for="providerSelect">Provider</label>
-        <select id="providerSelect">
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="gemini">Google Gemini</option>
-          <option value="groq">Groq</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="modelInput">Model Name</label>
-        <input type="text" id="modelInput" placeholder="e.g. gpt-4o-mini" />
-      </div>
-      <div class="field">
-        <label for="apiKeyInput">API Key (Stored in browser localStorage only)</label>
-        <input type="password" id="apiKeyInput" placeholder="Paste API key..." autocomplete="off" />
-      </div>
-      <div class="btn-row">
-        <button class="btn-primary" id="saveSettingsBtn" type="button">Save</button>
-        <button class="btn-danger" id="forgetSettingsBtn" type="button">Forget key</button>
-      </div>
+    <div>
+      <label for="model">Model name</label>
+      <input id="model" type="text" autocomplete="off" spellcheck="false">
     </div>
-  </details>
-
-  <!-- Duty Engineer Question Panel -->
-  <section class="card">
-    <div class="card-header">
-      <h2>Duty Engineer Decision Support Query</h2>
-      <span style="font-size: 0.8rem; color: var(--text-muted);">Evaluates tonight's forecast, depot stock, plan rules &amp; 5-winter history</span>
+    <div>
+      <label for="key">API key</label>
+      <input id="key" type="password" autocomplete="off" placeholder="Paste your key here">
     </div>
-    <div class="query-box">
-      <div class="quick-prompts">
-        <button type="button" class="chip" data-prompt="Assess all 10 routes for tonight against the Winter Service Plan. Recommend which routes to grit, spread rates, depot salt constraints, and highlight any historic cold-spot anomalies.">Tonight's full treatment recommendation</button>
-        <button type="button" class="chip" data-prompt="Check depot salt stocks, active trucks, and driver availability tonight. Are any depots at risk of running below reserve or lacking crew for Priority 1 routes?">Depot salt &amp; fleet bottleneck check</button>
-        <button type="button" class="chip" data-prompt="Compare tonight's ground temperatures, dew points, and precipitation against historic nights where ice incidents occurred or forecasts underestimated road cooling.">Historic ice incident &amp; forecast-miss comparison</button>
-      </div>
-      <div class="query-controls">
-        <textarea id="questionInput" placeholder="Ask about tonight's gritting recommendation, depot salt reserves, spread rates, or historic route performance..."></textarea>
-        <button class="btn-primary" id="sendBtn" type="button" style="min-width: 110px;">Send</button>
-      </div>
+    <div>
+      <label for="allowance">Free tokens per day (from your provider's dashboard)</label>
+      <input id="allowance" type="number" min="0" step="1000" placeholder="e.g. 100000">
     </div>
-    <div id="errorDisplay" class="error-banner"></div>
-    <div id="answerDisplay" class="ai-output"></div>
-  </section>
+  </div>
+  <div class="btns">
+    <button id="save">Save</button>
+    <button id="forget" class="secondary">Forget key</button>
+  </div>
+  <p class="small">Provider, model and key are stored in this browser only (localStorage) and sent straight to the provider with each question. The key is never in this file. Use only free-tier keys so nothing is charged. If a key ever reaches GitHub, delete it in the provider's dashboard at once and make a new one.</p>
+  <div id="settingsMsg" class="small"></div>
+</details>
 
-  <!-- Live Operational Dashboard -->
-  <section class="card">
-    <div class="card-header">
-      <h2>Live Operational Dashboard</h2>
-      <span style="font-size: 0.8rem; color: var(--text-muted);">Open-Meteo 24h Road Weather + Council Live Feeds</span>
-    </div>
+<!-- DASHBOARD -->
+<section>
+  <div class="row" style="align-items:center">
+    <h2 style="flex:1;margin:0">Dashboard</h2>
+    <button id="refresh" class="secondary" style="flex:0">Refresh data</button>
+  </div>
+  <p class="small" id="fetchedAt">Data not yet fetched.</p>
+  <div id="dataErrors"></div>
+</section>
 
-    <div class="kpi-strip" id="kpiStrip">
-      <div class="kpi"><div class="label">Routes Flagged (Ground ≤ 0°C &amp; Wet)</div><div class="val" id="kpiHighRisk">—</div></div>
-      <div class="kpi"><div class="label">Marginal / Marginal Frost Watch</div><div class="val" id="kpiMarginal">—</div></div>
-      <div class="kpi"><div class="label">Total Depot Salt Available</div><div class="val" id="kpiTotalSalt">—</div></div>
-      <div class="kpi"><div class="label">Trucks / Drivers Ready</div><div class="val" id="kpiFleet">—</div></div>
-      <div class="kpi"><div class="label">Historic Nights Loaded</div><div class="val" id="kpiHistory">—</div></div>
-    </div>
+<section>
+  <h2>1. Tonight: salt, trucks and drivers by depot</h2>
+  <div class="tablewrap" id="tonight">Loading…</div>
+</section>
 
-    <div class="dashboard-grid">
-      <!-- Routes + Tonight Forecast -->
-      <div class="col-12">
-        <h3 style="font-size: 0.92rem; margin: 0 0 0.5rem 0; color: var(--accent);">10 Gritting Routes &amp; Tonight's 24h Forecast</h3>
-        <div class="table-wrap">
-          <table id="routesTable">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Route</th>
-                <th>Priority</th>
-                <th>Depot</th>
-                <th>Length</th>
-                <th>Coords</th>
-                <th>Min Air</th>
-                <th>Min Ground (0cm)</th>
-                <th>Min Dew Pt</th>
-                <th>Total Rain</th>
-                <th>Hrs Ground ≤ 0°C</th>
-                <th>Wet Test</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody><tr><td colspan="13">Loading routes &amp; forecast...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
+<section>
+  <h2>2. Routes with tonight's forecast</h2>
+  <p class="small">Indicative screen only: lowest ground temperature (soil 0 cm) in the next 24 hours, and whether it is wet (rain, or a dew point within 1 °C of the ground). Treatment rules are in the plan.</p>
+  <div class="tablewrap" id="routes">Loading…</div>
+</section>
 
-      <!-- Depot Status -->
-      <div class="col-7">
-        <h3 style="font-size: 0.92rem; margin: 0.5rem 0; color: var(--accent);">Tonight's Depot Salt, Trucks &amp; Drivers (tonight.csv)</h3>
-        <div class="table-wrap">
-          <table id="depotsTable">
-            <thead><tr><th>Loading depot inventory...</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
+<section>
+  <h2>3. The winter service plan (rulebook)</h2>
+  <details><summary>Show plan.md</summary><pre class="plan" id="plan">Loading…</pre></details>
+</section>
 
-      <!-- Winter Service Plan -->
-      <div class="col-5">
-        <h3 style="font-size: 0.92rem; margin: 0.5rem 0; color: var(--accent);">Winter Service Plan Rulebook (plan.md)</h3>
-        <div class="plan-box" id="planContent">Loading winter service plan...</div>
-      </div>
+<section>
+  <h2>4. Five winters of history</h2>
+  <div class="tablewrap" id="history">Loading…</div>
+</section>
 
-      <!-- 5 Winters History Summary & Recent/Incident Log -->
-      <div class="col-12">
-        <h3 style="font-size: 0.92rem; margin: 0.5rem 0; color: var(--accent);">5-Winter History Overview &amp; Notable Records (history.csv)</h3>
-        <div class="table-wrap" style="max-height: 290px; overflow-y: auto;">
-          <table id="historyTable">
-            <thead><tr><th>Loading 5-winter history...</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+<!-- QUESTION -->
+<section>
+  <h2>Ask Winter Watch</h2>
+  <p class="notice">Answers use tonight's depots, routes, forecast, the plan and a summary of history. They are recommendations only. The Duty Engineer decides.</p>
+  <label for="question">Question</label>
+  <textarea id="question" placeholder="e.g. Which routes should we treat tonight, and is there enough salt at each depot?"></textarea>
+  <div class="btns"><button id="send">Send</button></div>
+  <div id="answerErr"></div>
+  <div class="answer" id="answer"></div>
+  <div class="usage" id="usage" hidden></div>
+</section>
 
-    <div class="status-footer" style="margin-top: 0.85rem; border-top: 1px solid var(--border); padding-top: 0.65rem;">
-      <span id="fetchTimestamp" class="mono">Data fetched live at --:--:--</span>
-      <span id="fetchErrors" style="color: var(--danger);"></span>
-    </div>
-  </section>
-</div>
+</main>
 
 <script>
-(function () {
-  const URLS = {
-    tonight: 'https://bdaib-hub.pages.dev/data/winter/tonight.csv',
-    routes: 'https://bdaib-hub.pages.dev/data/winter/routes.csv',
-    forecast: 'https://api.open-meteo.com/v1/forecast?latitude=53.99,54.04,54.07,53.88,53.92,53.87,54.06,54.11,53.83,53.9&longitude=-7.345,-7.38,-7.44,-7.33,-6.98,-7.54,-7.09,-7.58,-7.08,-6.8&hourly=temperature_2m,soil_temperature_0cm,dew_point_2m,precipitation&forecast_hours=24&timezone=Europe%2FDublin',
-    plan: 'https://bdaib-hub.pages.dev/data/winter/plan.md',
-    history: 'https://bdaib-hub.pages.dev/data/winter/history.csv'
-  };
+(function(){
+"use strict";
 
-  const DEFAULT_MODELS = {
-    openai: 'gpt-4o-mini',
-    anthropic: 'claude-3-5-sonnet-latest',
-    gemini: 'gemini-2.5-flash',
-    groq: 'llama-3.3-70b-versatile'
-  };
+var URLS = {
+  tonight:"https://bdaib-hub.pages.dev/data/winter/tonight.csv",
+  routes:"https://bdaib-hub.pages.dev/data/winter/routes.csv",
+  forecast:"https://api.open-meteo.com/v1/forecast?latitude=53.99,54.04,54.07,53.88,53.92,53.87,54.06,54.11,53.83,53.9&longitude=-7.345,-7.38,-7.44,-7.33,-6.98,-7.54,-7.09,-7.58,-7.08,-6.8&hourly=temperature_2m,soil_temperature_0cm,dew_point_2m,precipitation&forecast_hours=24&timezone=Europe%2FDublin",
+  plan:"https://bdaib-hub.pages.dev/data/winter/plan.md",
+  history:"https://bdaib-hub.pages.dev/data/winter/history.csv"
+};
+var DEFAULT_MODELS = {openai:"gpt-4o-mini",anthropic:"claude-haiku-4-5",gemini:"gemini-2.5-flash",groq:"llama-3.3-70b-versatile"};
+var LS = {provider:"ww_provider",model:"ww_model",key:"ww_key",allowance:"ww_allowance",used:"ww_used"};
 
-  const STORAGE_KEYS = {
-    provider: 'winter_watch_provider',
-    model: 'winter_watch_model',
-    apiKey: 'winter_watch_api_key'
-  };
+var state = {tonight:null,routes:null,forecast:null,plan:"",history:null,fetchedAt:null};
+var $ = function(id){return document.getElementById(id);};
 
-  const state = {
-    tonightRaw: '',
-    tonightRows: [],
-    routesRaw: '',
-    routesRows: [],
-    forecastData: null,
-    routeForecastSummaries: [],
-    planText: '',
-    historyRaw: '',
-    historyRows: [],
-    fetchedAt: null
-  };
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function ls(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);return true;}catch(e){return false;}}
+function lsDel(k){try{localStorage.removeItem(k);}catch(e){}}
+function errText(e){
+  var t = (e && e.name ? e.name+": " : "") + (e && e.message ? e.message : String(e));
+  if(e && e.stack && e.name!=="Error") t += "\n" + e.stack;
+  return t;
+}
+function showErr(el,msg){el.innerHTML='<div class="err">'+esc(msg)+'</div>';}
 
-  // DOM Elements
-  const providerSelect = document.getElementById('providerSelect');
-  const modelInput = document.getElementById('modelInput');
-  const apiKeyInput = document.getElementById('apiKeyInput');
-  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-  const forgetSettingsBtn = document.getElementById('forgetSettingsBtn');
-  const keyStatusBadge = document.getElementById('keyStatusBadge');
-  const settingsPanel = document.getElementById('settingsPanel');
-
-  const questionInput = document.getElementById('questionInput');
-  const sendBtn = document.getElementById('sendBtn');
-  const errorDisplay = document.getElementById('errorDisplay');
-  const answerDisplay = document.getElementById('answerDisplay');
-  const refreshBtn = document.getElementById('refreshBtn');
-
-  // CSV Parser (handles quoted fields cleanly)
-  function parseCSV(text) {
-    const lines = text.trim().split(/\r?\n/);
-    if (!lines.length) return [];
-    const parseLine = (line) => {
-      const result = [];
-      let cur = '';
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          if (inQuotes && line[i + 1] === '"') {
-            cur += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (ch === ',' && !inQuotes) {
-          result.push(cur.trim());
-          cur = '';
-        } else {
-          cur += ch;
-        }
-      }
-      result.push(cur.trim());
-      return result;
-    };
-
-    const headers = parseLine(lines[0]);
-    return lines.slice(1).filter(l => l.trim().length > 0).map(line => {
-      const vals = parseLine(line);
-      const obj = {};
-      headers.forEach((h, idx) => {
-        obj[h] = vals[idx] !== undefined ? vals[idx] : '';
-      });
-      return obj;
-    });
-  }
-
-  // Settings Management
-  function loadSettings() {
-    const savedProvider = localStorage.getItem(STORAGE_KEYS.provider) || 'openai';
-    const savedModel = localStorage.getItem(STORAGE_KEYS.model) || DEFAULT_MODELS[savedProvider];
-    const savedKey = localStorage.getItem(STORAGE_KEYS.apiKey) || '';
-
-    providerSelect.value = savedProvider;
-    modelInput.value = savedModel;
-    apiKeyInput.value = savedKey;
-    updateKeyStatus();
-    if (!savedKey) {
-      settingsPanel.open = true;
-    }
-  }
-
-  function updateKeyStatus() {
-    const key = localStorage.getItem(STORAGE_KEYS.apiKey);
-    const prov = localStorage.getItem(STORAGE_KEYS.provider) || providerSelect.value;
-    const mod = localStorage.getItem(STORAGE_KEYS.model) || modelInput.value;
-    if (key) {
-      keyStatusBadge.textContent = `Ready (${prov.toUpperCase()} · ${mod})`;
-      keyStatusBadge.style.color = 'var(--success)';
+/* ---------- CSV ---------- */
+function parseCSV(text){
+  var rows=[],row=[],f="",q=false,i,c;
+  text=text.replace(/^\uFEFF/,"");
+  for(i=0;i<text.length;i++){
+    c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; }
+      else f+=c;
     } else {
-      keyStatusBadge.textContent = 'No API key saved';
-      keyStatusBadge.style.color = 'var(--warning)';
+      if(c==='"') q=true;
+      else if(c===","){row.push(f);f="";}
+      else if(c==="\n"||c==="\r"){
+        if(c==="\r"&&text[i+1]==="\n") i++;
+        row.push(f);f="";
+        if(row.length>1||row[0]!=="") rows.push(row);
+        row=[];
+      } else f+=c;
     }
   }
-
-  providerSelect.addEventListener('change', () => {
-    const prov = providerSelect.value;
-    modelInput.value = DEFAULT_MODELS[prov] || '';
+  if(f!==""||row.length){row.push(f);rows.push(row);}
+  if(!rows.length) return {headers:[],rows:[]};
+  var headers=rows[0].map(function(h){return h.trim();});
+  var data=rows.slice(1).map(function(r){
+    var o={};headers.forEach(function(h,j){o[h]=(r[j]==null?"":r[j]).trim();});return o;
   });
+  return {headers:headers,rows:data};
+}
 
-  saveSettingsBtn.addEventListener('click', () => {
-    const prov = providerSelect.value;
-    const mod = modelInput.value.trim() || DEFAULT_MODELS[prov];
-    const key = apiKeyInput.value.trim();
-
-    localStorage.setItem(STORAGE_KEYS.provider, prov);
-    localStorage.setItem(STORAGE_KEYS.model, mod);
-    if (key) {
-      localStorage.setItem(STORAGE_KEYS.apiKey, key);
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.apiKey);
-    }
-    modelInput.value = mod;
-    updateKeyStatus();
-    settingsPanel.open = false;
+function tableHTML(headers,rows,extraCols){
+  var h="<table><thead><tr>"+headers.map(function(x){return "<th>"+esc(x)+"</th>";}).join("");
+  if(extraCols) h+=extraCols.heads.map(function(x){return "<th>"+esc(x)+"</th>";}).join("");
+  h+="</tr></thead><tbody>";
+  rows.forEach(function(r,i){
+    h+="<tr>"+headers.map(function(k){return "<td>"+esc(r[k])+"</td>";}).join("");
+    if(extraCols) h+=extraCols.cells(i);
+    h+="</tr>";
   });
+  return h+"</tbody></table>";
+}
 
-  forgetSettingsBtn.addEventListener('click', () => {
-    localStorage.removeItem(STORAGE_KEYS.provider);
-    localStorage.removeItem(STORAGE_KEYS.model);
-    localStorage.removeItem(STORAGE_KEYS.apiKey);
-    apiKeyInput.value = '';
-    providerSelect.value = 'openai';
-    modelInput.value = DEFAULT_MODELS.openai;
-    updateKeyStatus();
+/* ---------- Fetching ---------- */
+function getText(url){
+  return fetch(url,{cache:"no-store"}).then(function(r){
+    if(!r.ok) throw new Error("HTTP "+r.status+" "+r.statusText+" from "+url);
+    return r.text();
   });
-
-  // Quick prompt chips
-  document.querySelectorAll('.chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      questionInput.value = btn.getAttribute('data-prompt');
-      questionInput.focus();
+}
+function getJSON(url){
+  return fetch(url,{cache:"no-store"}).then(function(r){
+    return r.text().then(function(t){
+      if(!r.ok) throw new Error("HTTP "+r.status+" "+r.statusText+" from "+url+"\n"+t);
+      try{return JSON.parse(t);}catch(e){throw new Error("Invalid JSON from "+url+": "+e.message);}
     });
   });
+}
+function pad(n){return (n<10?"0":"")+n;}
 
-  // Live Data Fetching
-  async function fetchAllData() {
-    refreshBtn.disabled = true;
-    refreshBtn.textContent = 'Fetching...';
-    const fetchErrEl = document.getElementById('fetchErrors');
-    fetchErrEl.textContent = '';
-
-    try {
-      const [tonightRes, routesRes, forecastRes, planRes, historyRes] = await Promise.all([
-        fetch(URLS.tonight, { cache: 'no-store' }),
-        fetch(URLS.routes, { cache: 'no-store' }),
-        fetch(URLS.forecast, { cache: 'no-store' }),
-        fetch(URLS.plan, { cache: 'no-store' }),
-        fetch(URLS.history, { cache: 'no-store' })
-      ]);
-
-      if (!tonightRes.ok) throw new Error(`tonight.csv HTTP ${tonightRes.status}`);
-      if (!routesRes.ok) throw new Error(`routes.csv HTTP ${routesRes.status}`);
-      if (!forecastRes.ok) throw new Error(`Open-Meteo HTTP ${forecastRes.status}`);
-      if (!planRes.ok) throw new Error(`plan.md HTTP ${planRes.status}`);
-      if (!historyRes.ok) throw new Error(`history.csv HTTP ${historyRes.status}`);
-
-      state.tonightRaw = await tonightRes.text();
-      state.routesRaw = await routesRes.text();
-      state.forecastData = await forecastRes.json();
-      state.planText = await planRes.text();
-      state.historyRaw = await historyRes.text();
-
-      state.tonightRows = parseCSV(state.tonightRaw);
-      state.routesRows = parseCSV(state.routesRaw);
-      state.historyRows = parseCSV(state.historyRaw);
-
-      processForecastSummaries();
-      renderDashboard();
-
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      const ss = String(now.getSeconds()).padStart(2, '0');
-      state.fetchedAt = `${hh}:${mm}:${ss}`;
-      document.getElementById('fetchTimestamp').textContent = `Data fetched live at ${state.fetchedAt}`;
-    } catch (err) {
-      fetchErrEl.textContent = `Data load error: ${err.message}`;
-      showError(`Failed to fetch live operational data:\n${err.stack || err.message}`);
-    } finally {
-      refreshBtn.disabled = false;
-      refreshBtn.textContent = '↻ Refresh Live Data';
-    }
-  }
-
-  function processForecastSummaries() {
-    const locations = Array.isArray(state.forecastData) ? state.forecastData : [state.forecastData];
-    state.routeForecastSummaries = state.routesRows.map((route, idx) => {
-      const loc = locations[idx] || {};
-      const h = loc.hourly || {};
-      const air = h.temperature_2m || [];
-      const ground = h.soil_temperature_0cm || [];
-      const dew = h.dew_point_2m || [];
-      const rain = h.precipitation || [];
-      const times = h.time || [];
-
-      let minAir = Infinity, minGround = Infinity, minDew = Infinity;
-      let totalRain = 0, hrsGroundBelowZero = 0;
-      let wetWhileCold = false;
-      let minDewSpreadAtCold = Infinity;
-      let lowestTime = '';
-
-      for (let i = 0; i < ground.length; i++) {
-        const g = Number(ground[i]);
-        const a = Number(air[i]);
-        const d = Number(dew[i]);
-        const r = Number(rain[i]);
-
-        if (!Number.isNaN(a) && a < minAir) minAir = a;
-        if (!Number.isNaN(g) && g < minGround) {
-          minGround = g;
-          lowestTime = times[i] || '';
-        }
-        if (!Number.isNaN(d) && d < minDew) minDew = d;
-        if (!Number.isNaN(r)) totalRain += r;
-        if (!Number.isNaN(g) && g <= 0) hrsGroundBelowZero++;
-
-        // Wet test per guide: rain > 0, or dew point within 1°C of ground temp
-        const spread = g - d;
-        if (!Number.isNaN(spread) && g <= 1.0 && spread < minDewSpreadAtCold) {
-          minDewSpreadAtCold = spread;
-        }
-        const isWetHour = (r > 0) || (!Number.isNaN(spread) && spread <= 1.0);
-        if (g <= 0 && isWetHour) {
-          wetWhileCold = true;
-        }
-      }
-
-      const overallWet = (totalRain > 0) || (minDewSpreadAtCold <= 1.0);
-      let riskLevel = 'CLEAR';
-      if (minGround <= 0 && wetWhileCold) {
-        riskLevel = 'ICE RISK';
-      } else if (minGround <= 1.0 || (minGround <= 0 && !wetWhileCold)) {
-        riskLevel = 'WATCH';
-      }
-
-      return {
-        route,
-        minAir: Number.isFinite(minAir) ? minAir : null,
-        minGround: Number.isFinite(minGround) ? minGround : null,
-        minDew: Number.isFinite(minDew) ? minDew : null,
-        totalRain: Number(totalRain.toFixed(2)),
-        hrsGroundBelowZero,
-        wetWhileCold,
-        overallWet,
-        minDewSpreadAtCold: Number.isFinite(minDewSpreadAtCold) ? Number(minDewSpreadAtCold.toFixed(1)) : null,
-        lowestTime,
-        riskLevel,
-        hourly: h
-      };
+function loadAll(){
+  $("refresh").disabled=true;
+  $("dataErrors").innerHTML="";
+  var errs=[];
+  function wrap(label,p,done,target){
+    return p.then(done).catch(function(e){
+      errs.push(label+" failed:\n"+errText(e));
+      if(target) $(target).innerHTML='<div class="err">'+esc(label+" failed:\n"+errText(e))+'</div>';
     });
   }
-
-  function renderDashboard() {
-    // KPIs
-    const iceRiskCount = state.routeForecastSummaries.filter(r => r.riskLevel === 'ICE RISK').length;
-    const watchCount = state.routeForecastSummaries.filter(r => r.riskLevel === 'WATCH').length;
-
-    let totalSalt = 0, totalTrucks = 0, totalDrivers = 0;
-    state.tonightRows.forEach(row => {
-      const saltKey = Object.keys(row).find(k => /salt/i.test(k));
-      const truckKey = Object.keys(row).find(k => /truck|vehicle|gritter/i.test(k));
-      const driverKey = Object.keys(row).find(k => /driver|crew|staff/i.test(k));
-      if (saltKey) totalSalt += parseFloat(row[saltKey]) || 0;
-      if (truckKey) totalTrucks += parseInt(row[truckKey], 10) || 0;
-      if (driverKey) totalDrivers += parseInt(row[driverKey], 10) || 0;
-    });
-
-    document.getElementById('kpiHighRisk').textContent = `${iceRiskCount} / ${state.routeForecastSummaries.length}`;
-    document.getElementById('kpiHighRisk').style.color = iceRiskCount > 0 ? 'var(--danger)' : 'var(--success)';
-    document.getElementById('kpiMarginal').textContent = `${watchCount}`;
-    document.getElementById('kpiMarginal').style.color = watchCount > 0 ? 'var(--warning)' : 'var(--text)';
-    document.getElementById('kpiTotalSalt').textContent = `${totalSalt.toFixed(1)} t`;
-    document.getElementById('kpiFleet').textContent = `${totalTrucks} trucks · ${totalDrivers} drivers`;
-    document.getElementById('kpiHistory').textContent = `${state.historyRows.length} rows`;
-
-    // Routes + Forecast Table
-    const routesTbody = document.querySelector('#routesTable tbody');
-    routesTbody.innerHTML = state.routeForecastSummaries.map(item => {
-      const r = item.route;
-      const id = r.route_id || r.id || '';
-      const name = r.route || r.name || r.route_name || '';
-      const prio = r.priority || '';
-      const depot = r.depot || '';
-      const len = r.length_km || r.length || '';
-      const lat = r.lat || r.latitude || '';
-      const lon = r.lon || r.longitude || '';
-
-      const pillClass = item.riskLevel === 'ICE RISK' ? 'pill-risk' : (item.riskLevel === 'WATCH' ? 'pill-watch' : 'pill-clear');
-      const wetLabel = item.wetWhileCold ? 'Yes (Wet+≤0°C)' : (item.overallWet ? 'Wet (>0°C)' : 'Dry');
-
-      return `<tr>
-        <td class="mono"><strong>${escapeHtml(id)}</strong></td>
-        <td>${escapeHtml(name)}</td>
-        <td>P${escapeHtml(prio)}</td>
-        <td>${escapeHtml(depot)}</td>
-        <td>${escapeHtml(len)} km</td>
-        <td class="mono" style="font-size:0.76rem; color:var(--text-muted);">${escapeHtml(lat)}, ${escapeHtml(lon)}</td>
-        <td class="mono">${item.minAir !== null ? item.minAir.toFixed(1) + '°C' : '—'}</td>
-        <td class="mono" style="font-weight:700; color:${item.minGround <= 0 ? 'var(--danger)' : 'inherit'};">${item.minGround !== null ? item.minGround.toFixed(1) + '°C' : '—'}</td>
-        <td class="mono">${item.minDew !== null ? item.minDew.toFixed(1) + '°C' : '—'}</td>
-        <td class="mono">${item.totalRain.toFixed(1)} mm</td>
-        <td class="mono">${item.hrsGroundBelowZero} h</td>
-        <td>${wetLabel}</td>
-        <td><span class="pill ${pillClass}">${item.riskLevel}</span></td>
-      </tr>`;
-    }).join('');
-
-    // Depots Table
-    renderGenericTable('depotsTable', state.tonightRows);
-
-    // Plan Markdown
-    document.getElementById('planContent').textContent = state.planText;
-
-    // History Table (show ice incidents or most recent 30 rows first so Duty Engineer sees critical history immediately)
-    const sortedHistory = [...state.historyRows].sort((a, b) => {
-      const incA = Number(a.ice_incidents || 0);
-      const incB = Number(b.ice_incidents || 0);
-      if (incB !== incA) return incB - incA;
-      return String(b.date || '').localeCompare(String(a.date || ''));
-    });
-    renderGenericTable('historyTable', sortedHistory.slice(0, 40));
-  }
-
-  function renderGenericTable(tableId, rows) {
-    const table = document.getElementById(tableId);
-    const thead = table.querySelector('thead');
-    const tbody = table.querySelector('tbody');
-    if (!rows.length) {
-      thead.innerHTML = '<tr><th>No rows</th></tr>';
-      tbody.innerHTML = '';
-      return;
-    }
-    const cols = Object.keys(rows[0]);
-    thead.innerHTML = '<tr>' + cols.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr>';
-    tbody.innerHTML = rows.map(row =>
-      '<tr>' + cols.map(c => `<td>${escapeHtml(row[c])}</td>`).join('') + '</tr>'
-    ).join('');
-  }
-
-  function escapeHtml(str) {
-    return String(str ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  function showError(msg) {
-    errorDisplay.style.display = 'block';
-    errorDisplay.textContent = msg;
-  }
-
-  function clearError() {
-    errorDisplay.style.display = 'none';
-    errorDisplay.textContent = '';
-  }
-
-  // Build concise, complete operational context for LLM
-  function buildSystemPrompt() {
-    // Summarize 5-winter history per route so all 5 winters of patterns are preserved within token limits
-    const byRoute = {};
-    state.historyRows.forEach(r => {
-      const id = r.route_id || 'UNKNOWN';
-      if (!byRoute[id]) {
-        byRoute[id] = {
-          nights: 0,
-          grittedCount: 0,
-          iceIncidentsTotal: 0,
-          incidentDates: [],
-          forecastUnderestimatedCount: 0,
-          minGroundRecorded: Infinity,
-          notesSamples: []
-        };
-      }
-      const stat = byRoute[id];
-      stat.nights++;
-      if (String(r.gritted).toLowerCase() === 'true' || String(r.gritted) === '1' || String(r.gritted).toLowerCase() === 'yes') {
-        stat.grittedCount++;
-      }
-      const inc = Number(r.ice_incidents || 0);
-      if (inc > 0) {
-        stat.iceIncidentsTotal += inc;
-        stat.incidentDates.push(`${r.date}(inc=${inc},minG=${r.min_ground_c},fcstG=${r.forecast_ground_c},gritted=${r.gritted},dec=${r.decision},notes=${r.notes})`);
-      }
-      const actualG = parseFloat(r.min_ground_c);
-      const fcstG = parseFloat(r.forecast_ground_c);
-      if (!Number.isNaN(actualG) && actualG < stat.minGroundRecorded) stat.minGroundRecorded = actualG;
-      if (!Number.isNaN(actualG) && !Number.isNaN(fcstG) && (fcstG - actualG) >= 1.5) {
-        stat.forecastUnderestimatedCount++;
-      }
-      if (r.notes && r.notes.trim() && stat.notesSamples.length < 6) {
-        stat.notesSamples.push(`${r.date}: ${r.notes}`);
-      }
-    });
-
-    const forecastCompact = state.routeForecastSummaries.map(s => ({
-      route_id: s.route.route_id || s.route.id,
-      route: s.route.route || s.route.name,
-      priority: s.route.priority,
-      depot: s.route.depot,
-      length_km: s.route.length_km || s.route.length,
-      min_air_c: s.minAir,
-      min_ground_0cm_c: s.minGround,
-      min_ground_time: s.lowestTime,
-      min_dew_point_c: s.minDew,
-      total_precip_mm: s.totalRain,
-      hours_ground_at_or_below_0: s.hrsGroundBelowZero,
-      wet_test_triggered_while_freezing: s.wetWhileCold,
-      computed_status: s.riskLevel,
-      hourly_time: s.hourly.time,
-      hourly_soil_temp_0cm: s.hourly.soil_temperature_0cm,
-      hourly_temp_2m: s.hourly.temperature_2m,
-      hourly_dew_point_2m: s.hourly.dew_point_2m,
-      hourly_precipitation: s.hourly.precipitation
-    }));
-
-    return `You are Winter Watch, an internal decision-support assistant for a County Council Roads Team.
-CRITICAL GOVERNANCE RULE: Your users are council roads staff (specifically the Duty Engineer). You ONLY recommend—you NEVER make the final operational decision; the Duty Engineer decides. State your recommendations clearly with operational justification, spread rates, depot constraints, and caveats.
-
-DOMAIN & DATA RULES:
-- The Winter Service Plan (plan.md below) is your strict rulebook: follow its rules on who decides, temperature/moisture triggers, spread rates (g/m² or tonnes), priority order, depot reserve thresholds, and out-of-scope roads.
-- Ground temperature (soil_temperature_0cm) governs road freezing, not air temperature alone.
-- Wet test: A road only ices if it is wet (precipitation > 0, or dew point within 1°C of ground temperature).
-- Check tonight's depot inventory (tonight.csv) for salt tonnage, available trucks, and available drivers before recommending actions. Flag any depot bottleneck immediately.
-- Factor in 5-winter history (history.csv): highlight routes with prior ice incidents, cold-spot forecast misses (where actual ground temp dropped colder than forecast), or stock hold-back issues.
-
-=== 1. WINTER SERVICE PLAN (plan.md) ===
-${state.planText}
-
-=== 2. TONIGHT'S DEPOTS (tonight.csv) ===
-${state.tonightRaw}
-
-=== 3. ROUTES & TONIGHT'S 24H OPEN-METEO FORECAST ===
-${JSON.stringify(forecastCompact)}
-
-=== 4. FIVE-WINTER HISTORY AGGREGATE BY ROUTE (from ${state.historyRows.length} records in history.csv) ===
-${JSON.stringify(byRoute)}
-
-=== 5. ALL HISTORIC ICE INCIDENT RECORDS ===
-${JSON.stringify(state.historyRows.filter(r => Number(r.ice_incidents || 0) > 0))}`;
-  }
-
-  // Direct Browser Provider Calls
-  async function callProvider(provider, model, apiKey, systemPrompt, userQuestion) {
-    if (provider === 'openai') {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userQuestion }
-          ]
-        })
-      });
-      const rawText = await res.text();
-      if (!res.ok) throw new Error(`OpenAI HTTP ${res.status} ${res.statusText}\n${rawText}`);
-      const data = JSON.parse(rawText);
-      return data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
-    }
-
-    if (provider === 'anthropic') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 2048,
-          system: systemPrompt,
-          messages: [
-            { role: 'user', content: userQuestion }
-          ]
-        })
-      });
-      const rawText = await res.text();
-      if (!res.ok) throw new Error(`Anthropic HTTP ${res.status} ${res.statusText}\n${rawText}`);
-      const data = JSON.parse(rawText);
-      return (data.content || []).map(c => c.text || '').join('\n') || JSON.stringify(data, null, 2);
-    }
-
-    if (provider === 'gemini') {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey
-        },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: userQuestion }]
-            }
-          ]
-        })
-      });
-      const rawText = await res.text();
-      if (!res.ok) throw new Error(`Google Gemini HTTP ${res.status} ${res.statusText}\n${rawText}`);
-      const data = JSON.parse(rawText);
-      return data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('\n') || JSON.stringify(data, null, 2);
-    }
-
-    if (provider === 'groq') {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userQuestion }
-          ]
-        })
-      });
-      const rawText = await res.text();
-      if (!res.ok) throw new Error(`Groq HTTP ${res.status} ${res.statusText}\n${rawText}`);
-      const data = JSON.parse(rawText);
-      return data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
-    }
-
-    throw new Error(`Unsupported provider: ${provider}`);
-  }
-
-  sendBtn.addEventListener('click', async () => {
-    clearError();
-    const provider = localStorage.getItem(STORAGE_KEYS.provider) || providerSelect.value;
-    const model = (localStorage.getItem(STORAGE_KEYS.model) || modelInput.value).trim();
-    const apiKey = (localStorage.getItem(STORAGE_KEYS.apiKey) || apiKeyInput.value).trim();
-    const question = questionInput.value.trim();
-
-    if (!apiKey) {
-      settingsPanel.open = true;
-      showError('Missing API key. Open API & Model Settings above, enter your key, and click Save.');
-      return;
-    }
-    if (!model) {
-      settingsPanel.open = true;
-      showError('Missing model name. Enter a valid model identifier in Settings.');
-      return;
-    }
-    if (!question) {
-      showError('Please enter a question for Winter Watch before clicking Send.');
-      return;
-    }
-
-    sendBtn.disabled = true;
-    sendBtn.textContent = 'Analyzing...';
-    answerDisplay.style.display = 'block';
-    answerDisplay.textContent = `Querying ${provider.toUpperCase()} (${model}) with live telemetry, plan rules, and 5-winter history...`;
-
-    try {
-      const systemPrompt = buildSystemPrompt();
-      const reply = await callProvider(provider, model, apiKey, systemPrompt, question);
-      answerDisplay.textContent = reply;
-    } catch (err) {
-      answerDisplay.style.display = 'none';
-      showError(`API Request Error (${provider.toUpperCase()} / ${model}):\n\n${err.message}`);
-    } finally {
-      sendBtn.disabled = false;
-      sendBtn.textContent = 'Send';
-    }
+  var jobs=[
+    wrap("tonight.csv",getText(URLS.tonight),function(t){state.tonight=parseCSV(t);},"tonight"),
+    wrap("routes.csv",getText(URLS.routes),function(t){state.routes=parseCSV(t);},"routes"),
+    wrap("Open-Meteo forecast",getJSON(URLS.forecast),function(j){state.forecast=Array.isArray(j)?j:[j];},null),
+    wrap("plan.md",getText(URLS.plan),function(t){state.plan=t;},"plan"),
+    wrap("history.csv",getText(URLS.history),function(t){state.history=parseCSV(t);},"history")
+  ];
+  return Promise.all(jobs).then(function(){
+    var d=new Date();
+    state.fetchedAt=pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
+    $("fetchedAt").textContent="Data fetched live at "+state.fetchedAt;
+    render();
+    if(errs.length) $("dataErrors").innerHTML=errs.map(function(m){return '<div class="err">'+esc(m)+'</div>';}).join("");
+    $("refresh").disabled=false;
   });
+}
 
-  refreshBtn.addEventListener('click', fetchAllData);
+/* ---------- Forecast summary ---------- */
+function summarise(fc){
+  if(!fc||!fc.hourly) return null;
+  var h=fc.hourly,t=h.time||[],g=h.soil_temperature_0cm||[],a=h.temperature_2m||[],d=h.dew_point_2m||[],p=h.precipitation||[];
+  var minG=Infinity,minA=Infinity,minAt="",rain=0,wet=false,hoursBelow=0,i;
+  for(i=0;i<t.length;i++){
+    if(g[i]!=null&&g[i]<minG){minG=g[i];minAt=t[i];}
+    if(a[i]!=null&&a[i]<minA) minA=a[i];
+    if(p[i]!=null) rain+=p[i];
+    if(p[i]>0) wet=true;
+    if(g[i]!=null&&d[i]!=null&&Math.abs(g[i]-d[i])<=1) wet=true;
+    if(g[i]!=null&&g[i]<=0) hoursBelow++;
+  }
+  return {minG:isFinite(minG)?minG:null,minA:isFinite(minA)?minA:null,minAt:minAt,rain:rain,wet:wet,hoursBelow:hoursBelow};
+}
+function flagFor(s){
+  if(!s||s.minG==null) return {cls:"mid",txt:"No forecast"};
+  if(s.minG<=0&&s.wet) return {cls:"hi",txt:"Ice risk"};
+  if(s.minG<=0) return {cls:"mid",txt:"Cold, looks dry"};
+  if(s.minG<=2&&s.wet) return {cls:"mid",txt:"Watch"};
+  return {cls:"lo",txt:"Low risk"};
+}
+function fmt(n){return n==null?"–":(Math.round(n*10)/10).toFixed(1);}
 
-  // Initialize
-  loadSettings();
-  fetchAllData();
+/* ---------- History summary ---------- */
+function historySummary(){
+  var H=state.history;
+  if(!H||!H.rows.length) return "No history available.";
+  var by={},out=[];
+  H.rows.forEach(function(r){
+    var k=r.route_id||r.route||"?";
+    var o=by[k]||(by[k]={route:r.route||"",pri:r.priority||"",depot:r.depot||"",n:0,gritted:0,ice:0,iceUngritted:0,err:0,errN:0});
+    o.n++;
+    var g=/^(true|yes|1|y)$/i.test(r.gritted||"");
+    if(g) o.gritted++;
+    var ice=parseFloat(r.ice_incidents)||0;
+    o.ice+=ice;
+    if(!g&&ice>0) o.iceUngritted+=ice;
+    var f=parseFloat(r.forecast_ground_c),m=parseFloat(r.min_ground_c);
+    if(!isNaN(f)&&!isNaN(m)){o.err+=f-m;o.errN++;}
+  });
+  Object.keys(by).sort().forEach(function(k){
+    var o=by[k];
+    out.push(k+" "+o.route+" (priority "+o.pri+", depot "+o.depot+"): "+o.n+" nights, gritted "+o.gritted+", ice reports "+o.ice+" (on ungritted nights "+o.iceUngritted+"), mean forecast minus actual ground "+(o.errN?(o.err/o.errN).toFixed(2):"n/a")+" C");
+  });
+  var notes=H.rows.filter(function(r){return (r.notes||"").length>0;}).slice(-25).map(function(r){return r.date+" "+(r.route_id||"")+": "+r.notes+(r.decision?" [decision: "+r.decision+"]":"");});
+  if(notes.length) out.push("Recent crew notes:\n"+notes.join("\n"));
+  return out.join("\n");
+}
+
+/* ---------- Render ---------- */
+function render(){
+  if(state.tonight) $("tonight").innerHTML=tableHTML(state.tonight.headers,state.tonight.rows);
+  if(state.routes){
+    var fcs=state.forecast;
+    $("routes").innerHTML=tableHTML(state.routes.headers,state.routes.rows,{
+      heads:["Min ground °C","Min air °C","Hours ground ≤ 0","Rain mm","Wet?","Screen"],
+      cells:function(i){
+        var s=summarise(fcs&&fcs[i]);
+        if(!s) return '<td colspan="6">No forecast for this route</td>';
+        var f=flagFor(s);
+        return "<td>"+fmt(s.minG)+"</td><td>"+fmt(s.minA)+"</td><td>"+s.hoursBelow+"</td><td>"+fmt(s.rain)+"</td><td>"+(s.wet?"Yes":"No")+'</td><td class="flag '+f.cls+'">'+esc(f.txt)+"</td>";
+      }
+    });
+  }
+  if(state.plan) $("plan").textContent=state.plan;
+  if(state.history){
+    var rows=state.history.rows;
+    var shown=rows.slice(-30);
+    $("history").innerHTML='<p class="small">'+rows.length+" records in total. Showing the most recent "+shown.length+".</p>"+tableHTML(state.history.headers,shown);
+  }
+}
+
+/* ---------- Context for the model ---------- */
+function buildContext(){
+  var parts=[];
+  parts.push("Data fetched live at "+(state.fetchedAt||"unknown")+".");
+  parts.push("WINTER SERVICE PLAN (the rulebook):\n"+(state.plan?state.plan.slice(0,7000):"not available"));
+  if(state.tonight) parts.push("TONIGHT depots (salt, trucks, drivers), CSV:\n"+toCSV(state.tonight));
+  if(state.routes){
+    var lines=state.routes.rows.map(function(r,i){
+      var s=summarise(state.forecast&&state.forecast[i]);
+      var base=state.routes.headers.map(function(h){return h+"="+r[h];}).join(", ");
+      return base+(s?" | forecast next 24h: min ground "+fmt(s.minG)+" C at "+s.minAt+", min air "+fmt(s.minA)+" C, hours ground<=0: "+s.hoursBelow+", rain "+fmt(s.rain)+" mm, wet="+(s.wet?"yes":"no"):" | no forecast");
+    });
+    parts.push("ROUTES with forecast (soil_temperature_0cm is the ground):\n"+lines.join("\n"));
+  }
+  parts.push("HISTORY SUMMARY (five winters):\n"+historySummary());
+  return parts.join("\n\n");
+}
+function toCSV(t){
+  return t.headers.join(",")+"\n"+t.rows.map(function(r){return t.headers.map(function(h){return r[h];}).join(",");}).join("\n");
+}
+var SYSTEM="You are Winter Watch, an internal decision-support assistant for a council roads team. Your users are council staff. You only recommend; the Duty Engineer decides. Base every answer on the winter service plan and the data supplied. Work on ground temperature, and remember a road only ices if it is wet. Respect priority order, depot salt and truck limits, and any stock held back. Say clearly when the data or plan does not cover a question and do not invent figures. Keep answers short and practical, and finish by stating that the decision rests with the Duty Engineer.";
+
+/* ---------- Provider calls ---------- */
+function callProvider(provider,model,key,question){
+  var user="CONTEXT\n"+buildContext()+"\n\nQUESTION\n"+question;
+  var url,headers={"Content-Type":"application/json"},body;
+  if(provider==="openai"||provider==="groq"){
+    url=provider==="openai"?"https://api.openai.com/v1/chat/completions":"https://api.groq.com/openai/v1/chat/completions";
+    headers["Authorization"]="Bearer "+key;
+    body={model:model,messages:[{role:"system",content:SYSTEM},{role:"user",content:user}]};
+  } else if(provider==="anthropic"){
+    url="https://api.anthropic.com/v1/messages";
+    headers["x-api-key"]=key;
+    headers["anthropic-version"]="2023-06-01";
+    headers["anthropic-dangerous-direct-browser-access"]="true";
+    body={model:model,max_tokens:1024,system:SYSTEM,messages:[{role:"user",content:user}]};
+  } else if(provider==="gemini"){
+    url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent";
+    headers["x-goog-api-key"]=key;
+    body={systemInstruction:{parts:[{text:SYSTEM}]},contents:[{role:"user",parts:[{text:user}]}]};
+  } else throw new Error("Unknown provider: "+provider);
+
+  return fetch(url,{method:"POST",headers:headers,body:JSON.stringify(body)}).then(function(r){
+    return r.text().then(function(t){
+      if(!r.ok) throw new Error("HTTP "+r.status+" "+r.statusText+" from "+url+"\n\n"+t);
+      var j;
+      try{j=JSON.parse(t);}catch(e){throw new Error("Reply was not JSON:\n"+t);}
+      return parseReply(provider,j,r.headers);
+    });
+  });
+}
+function parseReply(provider,j,hd){
+  var text="",inT=null,outT=null,tot=null;
+  if(provider==="openai"||provider==="groq"){
+    text=j.choices&&j.choices[0]&&j.choices[0].message?j.choices[0].message.content:"";
+    if(j.usage){inT=j.usage.prompt_tokens;outT=j.usage.completion_tokens;tot=j.usage.total_tokens;}
+  } else if(provider==="anthropic"){
+    text=(j.content||[]).map(function(b){return b.text||"";}).join("");
+    if(j.usage){inT=j.usage.input_tokens;outT=j.usage.output_tokens;tot=(inT||0)+(outT||0);}
+  } else {
+    var c=j.candidates&&j.candidates[0];
+    text=c&&c.content&&c.content.parts?c.content.parts.map(function(p){return p.text||"";}).join(""):"";
+    if(j.usageMetadata){inT=j.usageMetadata.promptTokenCount;outT=j.usageMetadata.candidatesTokenCount;tot=j.usageMetadata.totalTokenCount;}
+  }
+  var rl={};
+  ["x-ratelimit-remaining-tokens","x-ratelimit-limit-tokens","x-ratelimit-reset-tokens","anthropic-ratelimit-tokens-remaining","anthropic-ratelimit-tokens-limit","anthropic-ratelimit-tokens-reset"].forEach(function(n){
+    var v=hd&&hd.get(n); if(v) rl[n]=v;
+  });
+  if(!text) throw new Error("The provider returned no text. Full reply:\n"+JSON.stringify(j,null,2));
+  return {text:text,inT:inT,outT:outT,tot:tot,rl:rl,usageRaw:j.usage||j.usageMetadata||null};
+}
+
+/* ---------- Token tally (per day, this browser) ---------- */
+function today(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function getUsed(){
+  try{var o=JSON.parse(ls(LS.used)||"{}");if(o.day===today()) return o.n||0;}catch(e){}
+  return 0;
+}
+function addUsed(n){lsSet(LS.used,JSON.stringify({day:today(),n:getUsed()+(n||0)}));}
+
+function showUsage(res,provider){
+  var u=$("usage"),h="";
+  h+="<strong>Tokens used by this reply:</strong> ";
+  h+=res.tot!=null?(res.tot+" total ("+(res.inT==null?"?":res.inT)+" in, "+(res.outT==null?"?":res.outT)+" out)"):"not reported by the provider";
+  h+="<br>Cost of this question = tokens × your model's price per token. On a free tier this should be zero.";
+  var allow=parseInt(ls(LS.allowance),10),used=getUsed();
+  h+="<br><strong>Used today in this browser:</strong> "+used;
+  if(allow>0){
+    var left=Math.max(0,allow-used);
+    h+="<br><strong>Free tokens left today (your allowance minus use here):</strong> "+left+" of "+allow+(left===0?' <span class="flag hi">allowance used up: stop sending</span>':"");
+  } else h+="<br>Enter your free daily token allowance in Settings to see how many free tokens are left.";
+  var keys=Object.keys(res.rl);
+  if(keys.length){
+    h+="<br><strong>Provider rate-limit headers:</strong> "+keys.map(function(k){return esc(k)+" = "+esc(res.rl[k]);}).join("; ");
+  } else if(provider==="gemini"||provider==="openai"){
+    h+='<br><span class="small">This provider does not expose remaining free tokens in the reply; check its dashboard for the exact figure.</span>';
+  }
+  u.innerHTML=h;u.hidden=false;
+}
+
+/* ---------- Settings ---------- */
+function loadSettings(){
+  var p=ls(LS.provider)||"openai";
+  $("provider").value=p;
+  $("model").value=ls(LS.model)||DEFAULT_MODELS[p];
+  $("key").value=ls(LS.key)||"";
+  $("allowance").value=ls(LS.allowance)||"";
+}
+$("provider").addEventListener("change",function(){
+  $("model").value=DEFAULT_MODELS[$("provider").value];
+});
+$("save").addEventListener("click",function(){
+  var ok=lsSet(LS.provider,$("provider").value)&&lsSet(LS.model,$("model").value.trim())&&lsSet(LS.key,$("key").value.trim())&&lsSet(LS.allowance,$("allowance").value.trim());
+  $("settingsMsg").textContent=ok?"Saved in this browser only.":"Could not save: localStorage is unavailable in this browser.";
+});
+$("forget").addEventListener("click",function(){
+  lsDel(LS.provider);lsDel(LS.model);lsDel(LS.key);
+  $("key").value="";
+  $("settingsMsg").textContent="Provider, model and key removed from this browser.";
+});
+
+/* ---------- Send ---------- */
+$("send").addEventListener("click",function(){
+  var q=$("question").value.trim();
+  $("answerErr").innerHTML="";$("answer").textContent="";$("usage").hidden=true;
+  var provider=ls(LS.provider),model=ls(LS.model),key=ls(LS.key);
+  if(!key||!provider||!model){showErr($("answerErr"),"No saved settings. Open Settings, choose a provider and model, paste your key and press Save.");return;}
+  if(!q){showErr($("answerErr"),"Type a question first.");return;}
+  var allow=parseInt(ls(LS.allowance),10);
+  if(allow>0&&getUsed()>=allow){showErr($("answerErr"),"Your free token allowance for today ("+allow+") is used up. Sending is blocked to avoid charges. Raise the allowance in Settings only if your provider's free tier really allows it.");return;}
+  $("send").disabled=true;$("answer").textContent="Thinking…";
+  callProvider(provider,model,key,q).then(function(res){
+    $("answer").textContent=res.text;
+    if(res.tot!=null) addUsed(res.tot);
+    showUsage(res,provider);
+  }).catch(function(e){
+    $("answer").textContent="";
+    showErr($("answerErr"),errText(e));
+  }).then(function(){$("send").disabled=false;});
+});
+
+$("refresh").addEventListener("click",loadAll);
+loadSettings();
+loadAll();
 })();
 </script>
 </body>
 </html>
-    

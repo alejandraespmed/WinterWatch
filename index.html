@@ -30,13 +30,17 @@
   table{border-collapse:collapse;width:100%;font-size:13px}
   th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
   th{color:var(--mute);font-weight:600}
+  tfoot td{font-weight:600;border-top:2px solid var(--line)}
   .flag{font-weight:600}.flag.hi{color:var(--warn)}.flag.mid{color:var(--amber)}.flag.lo{color:var(--ok)}
   .small{font-size:12px;color:var(--mute)}
-  .err{border:1px solid var(--warn);color:var(--warn);background:transparent;border-radius:6px;padding:8px 10px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;margin-top:8px}
-  .answer{white-space:pre-wrap;word-break:break-word;margin-top:10px}
+  .err{border:1px solid var(--warn);color:var(--warn);border-radius:6px;padding:8px 10px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;margin-top:8px}
+  .qa{border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:12px}
+  .qa .q{font-weight:600}
+  .answer{white-space:pre-wrap;word-break:break-word;margin-top:8px}
   .usage{margin-top:10px;padding:8px 10px;border:1px dashed var(--line);border-radius:6px;font-size:13px}
   pre.plan{white-space:pre-wrap;max-height:320px;overflow:auto;font-size:12.5px;background:var(--bg);padding:10px;border-radius:6px}
   .notice{font-size:13px;color:var(--mute);border-left:3px solid var(--accent);padding-left:10px}
+  tr.hi td:first-child{box-shadow:inset 3px 0 0 var(--warn)}tr.mid td:first-child{box-shadow:inset 3px 0 0 var(--amber)}
 </style>
 </head>
 <body>
@@ -82,10 +86,21 @@
   <div id="settingsMsg" class="small"></div>
 </details>
 
+<!-- QUESTION -->
+<section>
+  <h2>Ask Winter Watch</h2>
+  <p class="notice">Each question fetches the plan, depots, routes and forecast fresh. The numbers are worked out in JavaScript; the assistant explains them using the plan. It recommends only. The Duty Engineer decides.</p>
+  <label for="question">Question</label>
+  <textarea id="question" placeholder="e.g. Which routes should we treat tonight, and is there enough salt at each depot?"></textarea>
+  <div class="btns"><button id="send">Send</button></div>
+  <div id="answerErr"></div>
+  <div id="answers"></div>
+</section>
+
 <!-- DASHBOARD -->
 <section>
   <div class="row" style="align-items:center">
-    <h2 style="flex:1;margin:0">Dashboard</h2>
+    <h2 style="flex:1;margin:0">Dashboard: what matters tonight</h2>
     <button id="refresh" class="secondary" style="flex:0">Refresh data</button>
   </div>
   <p class="small" id="fetchedAt">Data not yet fetched.</p>
@@ -93,397 +108,10 @@
 </section>
 
 <section>
-  <h2>1. Tonight: salt, trucks and drivers by depot</h2>
-  <div class="tablewrap" id="tonight">Loading…</div>
-</section>
-
-<section>
-  <h2>2. Routes with tonight's forecast</h2>
-  <p class="small">Indicative screen only: lowest ground temperature (soil 0 cm) in the next 24 hours, and whether it is wet (rain, or a dew point within 1 °C of the ground). Treatment rules are in the plan.</p>
+  <h2>Routes, most urgent first</h2>
+  <p class="small">Lowest ground temperature (soil 0 cm) in the next 18 hours, the first hour at or below 0 °C, and whether the road is wet (any rain, or dew point within 1 °C of the ground). Sorted: freezing and wet first, then by priority. Treatment rules are in the plan.</p>
   <div class="tablewrap" id="routes">Loading…</div>
 </section>
 
 <section>
-  <h2>3. The winter service plan (rulebook)</h2>
-  <details><summary>Show plan.md</summary><pre class="plan" id="plan">Loading…</pre></details>
-</section>
-
-<section>
-  <h2>4. Five winters of history</h2>
-  <div class="tablewrap" id="history">Loading…</div>
-</section>
-
-<!-- QUESTION -->
-<section>
-  <h2>Ask Winter Watch</h2>
-  <p class="notice">Answers use tonight's depots, routes, forecast, the plan and a summary of history. They are recommendations only. The Duty Engineer decides.</p>
-  <label for="question">Question</label>
-  <textarea id="question" placeholder="e.g. Which routes should we treat tonight, and is there enough salt at each depot?"></textarea>
-  <div class="btns"><button id="send">Send</button></div>
-  <div id="answerErr"></div>
-  <div class="answer" id="answer"></div>
-  <div class="usage" id="usage" hidden></div>
-</section>
-
-</main>
-
-<script>
-(function(){
-"use strict";
-
-var URLS = {
-  tonight:"https://bdaib-hub.pages.dev/data/winter/tonight.csv",
-  routes:"https://bdaib-hub.pages.dev/data/winter/routes.csv",
-  forecast:"https://api.open-meteo.com/v1/forecast?latitude=53.99,54.04,54.07,53.88,53.92,53.87,54.06,54.11,53.83,53.9&longitude=-7.345,-7.38,-7.44,-7.33,-6.98,-7.54,-7.09,-7.58,-7.08,-6.8&hourly=temperature_2m,soil_temperature_0cm,dew_point_2m,precipitation&forecast_hours=24&timezone=Europe%2FDublin",
-  plan:"https://bdaib-hub.pages.dev/data/winter/plan.md",
-  history:"https://bdaib-hub.pages.dev/data/winter/history.csv"
-};
-var DEFAULT_MODELS = {openai:"gpt-4o-mini",anthropic:"claude-haiku-4-5",gemini:"gemini-2.5-flash",groq:"openai/gpt-oss-120b"};
-var LS = {provider:"ww_provider",model:"ww_model",key:"ww_key",allowance:"ww_allowance",used:"ww_used"};
-
-var state = {tonight:null,routes:null,forecast:null,plan:"",history:null,fetchedAt:null};
-var $ = function(id){return document.getElementById(id);};
-
-function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
-function ls(k){try{return localStorage.getItem(k);}catch(e){return null;}}
-function lsSet(k,v){try{localStorage.setItem(k,v);return true;}catch(e){return false;}}
-function lsDel(k){try{localStorage.removeItem(k);}catch(e){}}
-function errText(e){
-  var t = (e && e.name ? e.name+": " : "") + (e && e.message ? e.message : String(e));
-  if(e && e.stack && e.name!=="Error") t += "\n" + e.stack;
-  return t;
-}
-function showErr(el,msg){el.innerHTML='<div class="err">'+esc(msg)+'</div>';}
-
-/* ---------- CSV ---------- */
-function parseCSV(text){
-  var rows=[],row=[],f="",q=false,i,c;
-  text=text.replace(/^\uFEFF/,"");
-  for(i=0;i<text.length;i++){
-    c=text[i];
-    if(q){
-      if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; }
-      else f+=c;
-    } else {
-      if(c==='"') q=true;
-      else if(c===","){row.push(f);f="";}
-      else if(c==="\n"||c==="\r"){
-        if(c==="\r"&&text[i+1]==="\n") i++;
-        row.push(f);f="";
-        if(row.length>1||row[0]!=="") rows.push(row);
-        row=[];
-      } else f+=c;
-    }
-  }
-  if(f!==""||row.length){row.push(f);rows.push(row);}
-  if(!rows.length) return {headers:[],rows:[]};
-  var headers=rows[0].map(function(h){return h.trim();});
-  var data=rows.slice(1).map(function(r){
-    var o={};headers.forEach(function(h,j){o[h]=(r[j]==null?"":r[j]).trim();});return o;
-  });
-  return {headers:headers,rows:data};
-}
-
-function tableHTML(headers,rows,extraCols){
-  var h="<table><thead><tr>"+headers.map(function(x){return "<th>"+esc(x)+"</th>";}).join("");
-  if(extraCols) h+=extraCols.heads.map(function(x){return "<th>"+esc(x)+"</th>";}).join("");
-  h+="</tr></thead><tbody>";
-  rows.forEach(function(r,i){
-    h+="<tr>"+headers.map(function(k){return "<td>"+esc(r[k])+"</td>";}).join("");
-    if(extraCols) h+=extraCols.cells(i);
-    h+="</tr>";
-  });
-  return h+"</tbody></table>";
-}
-
-/* ---------- Fetching ---------- */
-function getText(url){
-  return fetch(url,{cache:"no-store"}).then(function(r){
-    if(!r.ok) throw new Error("HTTP "+r.status+" "+r.statusText+" from "+url);
-    return r.text();
-  });
-}
-function getJSON(url){
-  return fetch(url,{cache:"no-store"}).then(function(r){
-    return r.text().then(function(t){
-      if(!r.ok) throw new Error("HTTP "+r.status+" "+r.statusText+" from "+url+"\n"+t);
-      try{return JSON.parse(t);}catch(e){throw new Error("Invalid JSON from "+url+": "+e.message);}
-    });
-  });
-}
-function pad(n){return (n<10?"0":"")+n;}
-
-function loadAll(){
-  $("refresh").disabled=true;
-  $("dataErrors").innerHTML="";
-  var errs=[];
-  function wrap(label,p,done,target){
-    return p.then(done).catch(function(e){
-      errs.push(label+" failed:\n"+errText(e));
-      if(target) $(target).innerHTML='<div class="err">'+esc(label+" failed:\n"+errText(e))+'</div>';
-    });
-  }
-  var jobs=[
-    wrap("tonight.csv",getText(URLS.tonight),function(t){state.tonight=parseCSV(t);},"tonight"),
-    wrap("routes.csv",getText(URLS.routes),function(t){state.routes=parseCSV(t);},"routes"),
-    wrap("Open-Meteo forecast",getJSON(URLS.forecast),function(j){state.forecast=Array.isArray(j)?j:[j];},null),
-    wrap("plan.md",getText(URLS.plan),function(t){state.plan=t;},"plan"),
-    wrap("history.csv",getText(URLS.history),function(t){state.history=parseCSV(t);},"history")
-  ];
-  return Promise.all(jobs).then(function(){
-    var d=new Date();
-    state.fetchedAt=pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
-    $("fetchedAt").textContent="Data fetched live at "+state.fetchedAt;
-    render();
-    if(errs.length) $("dataErrors").innerHTML=errs.map(function(m){return '<div class="err">'+esc(m)+'</div>';}).join("");
-    $("refresh").disabled=false;
-  });
-}
-
-/* ---------- Forecast summary ---------- */
-function summarise(fc){
-  if(!fc||!fc.hourly) return null;
-  var h=fc.hourly,t=h.time||[],g=h.soil_temperature_0cm||[],a=h.temperature_2m||[],d=h.dew_point_2m||[],p=h.precipitation||[];
-  var minG=Infinity,minA=Infinity,minAt="",rain=0,wet=false,hoursBelow=0,i;
-  for(i=0;i<t.length;i++){
-    if(g[i]!=null&&g[i]<minG){minG=g[i];minAt=t[i];}
-    if(a[i]!=null&&a[i]<minA) minA=a[i];
-    if(p[i]!=null) rain+=p[i];
-    if(p[i]>0) wet=true;
-    if(g[i]!=null&&d[i]!=null&&Math.abs(g[i]-d[i])<=1) wet=true;
-    if(g[i]!=null&&g[i]<=0) hoursBelow++;
-  }
-  return {minG:isFinite(minG)?minG:null,minA:isFinite(minA)?minA:null,minAt:minAt,rain:rain,wet:wet,hoursBelow:hoursBelow};
-}
-function flagFor(s){
-  if(!s||s.minG==null) return {cls:"mid",txt:"No forecast"};
-  if(s.minG<=0&&s.wet) return {cls:"hi",txt:"Ice risk"};
-  if(s.minG<=0) return {cls:"mid",txt:"Cold, looks dry"};
-  if(s.minG<=2&&s.wet) return {cls:"mid",txt:"Watch"};
-  return {cls:"lo",txt:"Low risk"};
-}
-function fmt(n){return n==null?"–":(Math.round(n*10)/10).toFixed(1);}
-
-/* ---------- History summary ---------- */
-function historySummary(){
-  var H=state.history;
-  if(!H||!H.rows.length) return "No history available.";
-  var by={},out=[];
-  H.rows.forEach(function(r){
-    var k=r.route_id||r.route||"?";
-    var o=by[k]||(by[k]={route:r.route||"",pri:r.priority||"",depot:r.depot||"",n:0,gritted:0,ice:0,iceUngritted:0,err:0,errN:0});
-    o.n++;
-    var g=/^(true|yes|1|y)$/i.test(r.gritted||"");
-    if(g) o.gritted++;
-    var ice=parseFloat(r.ice_incidents)||0;
-    o.ice+=ice;
-    if(!g&&ice>0) o.iceUngritted+=ice;
-    var f=parseFloat(r.forecast_ground_c),m=parseFloat(r.min_ground_c);
-    if(!isNaN(f)&&!isNaN(m)){o.err+=f-m;o.errN++;}
-  });
-  Object.keys(by).sort().forEach(function(k){
-    var o=by[k];
-    out.push(k+" "+o.route+" (priority "+o.pri+", depot "+o.depot+"): "+o.n+" nights, gritted "+o.gritted+", ice reports "+o.ice+" (on ungritted nights "+o.iceUngritted+"), mean forecast minus actual ground "+(o.errN?(o.err/o.errN).toFixed(2):"n/a")+" C");
-  });
-  var notes=H.rows.filter(function(r){return (r.notes||"").length>0;}).slice(-25).map(function(r){return r.date+" "+(r.route_id||"")+": "+r.notes+(r.decision?" [decision: "+r.decision+"]":"");});
-  if(notes.length) out.push("Recent crew notes:\n"+notes.join("\n"));
-  return out.join("\n");
-}
-
-/* ---------- Render ---------- */
-function render(){
-  if(state.tonight) $("tonight").innerHTML=tableHTML(state.tonight.headers,state.tonight.rows);
-  if(state.routes){
-    var fcs=state.forecast;
-    $("routes").innerHTML=tableHTML(state.routes.headers,state.routes.rows,{
-      heads:["Min ground °C","Min air °C","Hours ground ≤ 0","Rain mm","Wet?","Screen"],
-      cells:function(i){
-        var s=summarise(fcs&&fcs[i]);
-        if(!s) return '<td colspan="6">No forecast for this route</td>';
-        var f=flagFor(s);
-        return "<td>"+fmt(s.minG)+"</td><td>"+fmt(s.minA)+"</td><td>"+s.hoursBelow+"</td><td>"+fmt(s.rain)+"</td><td>"+(s.wet?"Yes":"No")+'</td><td class="flag '+f.cls+'">'+esc(f.txt)+"</td>";
-      }
-    });
-  }
-  if(state.plan) $("plan").textContent=state.plan;
-  if(state.history){
-    var rows=state.history.rows;
-    var shown=rows.slice(-30);
-    $("history").innerHTML='<p class="small">'+rows.length+" records in total. Showing the most recent "+shown.length+".</p>"+tableHTML(state.history.headers,shown);
-  }
-}
-
-/* ---------- Context for the model ---------- */
-function buildContext(){
-  var parts=[];
-  parts.push("Data fetched live at "+(state.fetchedAt||"unknown")+".");
-  parts.push("WINTER SERVICE PLAN (the rulebook):\n"+(state.plan?state.plan.slice(0,7000):"not available"));
-  if(state.tonight) parts.push("TONIGHT depots (salt, trucks, drivers), CSV:\n"+toCSV(state.tonight));
-  if(state.routes){
-    var lines=state.routes.rows.map(function(r,i){
-      var s=summarise(state.forecast&&state.forecast[i]);
-      var base=state.routes.headers.map(function(h){return h+"="+r[h];}).join(", ");
-      return base+(s?" | forecast next 24h: min ground "+fmt(s.minG)+" C at "+s.minAt+", min air "+fmt(s.minA)+" C, hours ground<=0: "+s.hoursBelow+", rain "+fmt(s.rain)+" mm, wet="+(s.wet?"yes":"no"):" | no forecast");
-    });
-    parts.push("ROUTES with forecast (soil_temperature_0cm is the ground):\n"+lines.join("\n"));
-  }
-  parts.push("HISTORY SUMMARY (five winters):\n"+historySummary());
-  return parts.join("\n\n");
-}
-function toCSV(t){
-  return t.headers.join(",")+"\n"+t.rows.map(function(r){return t.headers.map(function(h){return r[h];}).join(",");}).join("\n");
-}
-var SYSTEM="You are Winter Watch, an internal decision-support assistant for a council roads team. Your users are council staff. You only recommend; the Duty Engineer decides. Base every answer on the winter service plan and the data supplied. Work on ground temperature, and remember a road only ices if it is wet. Respect priority order, depot salt and truck limits, and any stock held back. Say clearly when the data or plan does not cover a question and do not invent figures. Keep answers short and practical, and finish by stating that the decision rests with the Duty Engineer.";
-
-/* ---------- Provider calls ---------- */
-function callProvider(provider,model,key,question){
-  var user="CONTEXT\n"+buildContext()+"\n\nQUESTION\n"+question;
-  var url,headers={"Content-Type":"application/json"},body;
-  if(provider==="openai"||provider==="groq"){
-    url=provider==="openai"?"https://api.openai.com/v1/chat/completions":"https://api.groq.com/openai/v1/chat/completions";
-    headers["Authorization"]="Bearer "+key;
-    body={model:model,messages:[{role:"system",content:SYSTEM},{role:"user",content:user}]};
-  } else if(provider==="anthropic"){
-    url="https://api.anthropic.com/v1/messages";
-    headers["x-api-key"]=key;
-    headers["anthropic-version"]="2023-06-01";
-    headers["anthropic-dangerous-direct-browser-access"]="true";
-    body={model:model,max_tokens:1024,system:SYSTEM,messages:[{role:"user",content:user}]};
-  } else if(provider==="gemini"){
-    url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent";
-    headers["x-goog-api-key"]=key;
-    body={systemInstruction:{parts:[{text:SYSTEM}]},contents:[{role:"user",parts:[{text:user}]}]};
-  } else throw new Error("Unknown provider: "+provider);
-
-  return fetch(url,{method:"POST",headers:headers,body:JSON.stringify(body)}).then(function(r){
-    return r.text().then(function(t){
-      if(!r.ok) throw new Error("HTTP "+r.status+" "+r.statusText+" from "+url+"\n\n"+t);
-      var j;
-      try{j=JSON.parse(t);}catch(e){throw new Error("Reply was not JSON:\n"+t);}
-      return parseReply(provider,j,r.headers);
-    });
-  });
-}
-function parseReply(provider,j,hd){
-  var text="",inT=null,outT=null,tot=null;
-  if(provider==="openai"||provider==="groq"){
-    text=j.choices&&j.choices[0]&&j.choices[0].message?j.choices[0].message.content:"";
-    if(j.usage){inT=j.usage.prompt_tokens;outT=j.usage.completion_tokens;tot=j.usage.total_tokens;}
-  } else if(provider==="anthropic"){
-    text=(j.content||[]).map(function(b){return b.text||"";}).join("");
-    if(j.usage){inT=j.usage.input_tokens;outT=j.usage.output_tokens;tot=(inT||0)+(outT||0);}
-  } else {
-    var c=j.candidates&&j.candidates[0];
-    text=c&&c.content&&c.content.parts?c.content.parts.map(function(p){return p.text||"";}).join(""):"";
-    if(j.usageMetadata){inT=j.usageMetadata.promptTokenCount;outT=j.usageMetadata.candidatesTokenCount;tot=j.usageMetadata.totalTokenCount;}
-  }
-  var rl={};
-  ["x-ratelimit-remaining-tokens","x-ratelimit-limit-tokens","x-ratelimit-reset-tokens","anthropic-ratelimit-tokens-remaining","anthropic-ratelimit-tokens-limit","anthropic-ratelimit-tokens-reset"].forEach(function(n){
-    var v=hd&&hd.get(n); if(v) rl[n]=v;
-  });
-  if(!text) throw new Error("The provider returned no text. Full reply:\n"+JSON.stringify(j,null,2));
-  return {text:text,inT:inT,outT:outT,tot:tot,rl:rl,usageRaw:j.usage||j.usageMetadata||null};
-}
-
-/* ---------- Token tally (per day, this browser) ---------- */
-function today(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
-function getUsed(){
-  try{var o=JSON.parse(ls(LS.used)||"{}");if(o.day===today()) return o.n||0;}catch(e){}
-  return 0;
-}
-function addUsed(n){lsSet(LS.used,JSON.stringify({day:today(),n:getUsed()+(n||0)}));}
-
-function showUsage(res,provider){
-  var u=$("usage"),h="";
-  h+="<strong>Tokens used by this reply:</strong> ";
-  h+=res.tot!=null?(res.tot+" total ("+(res.inT==null?"?":res.inT)+" in, "+(res.outT==null?"?":res.outT)+" out)"):"not reported by the provider";
-  h+="<br>Cost of this question = tokens × your model's price per token. On a free tier this should be zero.";
-  var allow=parseInt(ls(LS.allowance),10),used=getUsed();
-  h+="<br><strong>Used today in this browser:</strong> "+used;
-  if(allow>0){
-    var left=Math.max(0,allow-used);
-    h+="<br><strong>Free tokens left today (your allowance minus use here):</strong> "+left+" of "+allow+(left===0?' <span class="flag hi">allowance used up: stop sending</span>':"");
-  } else h+="<br>Enter your free daily token allowance in Settings to see how many free tokens are left.";
-  var keys=Object.keys(res.rl);
-  if(keys.length){
-    h+="<br><strong>Provider rate-limit headers:</strong> "+keys.map(function(k){return esc(k)+" = "+esc(res.rl[k]);}).join("; ");
-  } else if(provider==="gemini"||provider==="openai"){
-    h+='<br><span class="small">This provider does not expose remaining free tokens in the reply; check its dashboard for the exact figure.</span>';
-  }
-  u.innerHTML=h;u.hidden=false;
-}
-
-/* ---------- Settings ---------- */
-function loadSettings(){
-  var p=ls(LS.provider)||"openai";
-  $("provider").value=p;
-  var m=ls(LS.model);
-  if(p==="groq"&&(m==="llama-3.3-70b-versatile"||m==="llama-3.1-8b-instant")){m=DEFAULT_MODELS.groq;lsSet(LS.model,m);}
-  $("model").value=m||DEFAULT_MODELS[p];
-  $("key").value=ls(LS.key)||"";
-  $("allowance").value=ls(LS.allowance)||"";
-}
-$("provider").addEventListener("change",function(){
-  $("model").value=DEFAULT_MODELS[$("provider").value];
-  $("modelList").innerHTML="";
-});
-$("save").addEventListener("click",function(){
-  var ok=lsSet(LS.provider,$("provider").value)&&lsSet(LS.model,$("model").value.trim())&&lsSet(LS.key,$("key").value.trim())&&lsSet(LS.allowance,$("allowance").value.trim());
-  $("settingsMsg").textContent=ok?"Saved in this browser only.":"Could not save: localStorage is unavailable in this browser.";
-});
-$("forget").addEventListener("click",function(){
-  lsDel(LS.provider);lsDel(LS.model);lsDel(LS.key);
-  $("key").value="";
-  $("settingsMsg").textContent="Provider, model and key removed from this browser.";
-});
-
-/* ---------- Send ---------- */
-$("send").addEventListener("click",function(){
-  var q=$("question").value.trim();
-  $("answerErr").innerHTML="";$("answer").textContent="";$("usage").hidden=true;
-  var provider=ls(LS.provider),model=ls(LS.model),key=ls(LS.key);
-  if(!key||!provider||!model){showErr($("answerErr"),"No saved settings. Open Settings, choose a provider and model, paste your key and press Save.");return;}
-  if(!q){showErr($("answerErr"),"Type a question first.");return;}
-  var allow=parseInt(ls(LS.allowance),10);
-  if(allow>0&&getUsed()>=allow){showErr($("answerErr"),"Your free token allowance for today ("+allow+") is used up. Sending is blocked to avoid charges. Raise the allowance in Settings only if your provider's free tier really allows it.");return;}
-  $("send").disabled=true;$("answer").textContent="Thinking…";
-  callProvider(provider,model,key,q).then(function(res){
-    $("answer").textContent=res.text;
-    if(res.tot!=null) addUsed(res.tot);
-    showUsage(res,provider);
-  }).catch(function(e){
-    $("answer").textContent="";
-    showErr($("answerErr"),errText(e));
-  }).then(function(){$("send").disabled=false;});
-});
-
-/* ---------- Load available models ---------- */
-$("loadModels").addEventListener("click",function(){
-  var p=$("provider").value,k=$("key").value.trim(),msg=$("settingsMsg");
-  if(!k){msg.textContent="Paste your key first, then load the model list.";return;}
-  var url,h={};
-  if(p==="openai"||p==="groq"){url=p==="openai"?"https://api.openai.com/v1/models":"https://api.groq.com/openai/v1/models";h["Authorization"]="Bearer "+k;}
-  else if(p==="anthropic"){url="https://api.anthropic.com/v1/models?limit=100";h["x-api-key"]=k;h["anthropic-version"]="2023-06-01";h["anthropic-dangerous-direct-browser-access"]="true";}
-  else{url="https://generativelanguage.googleapis.com/v1beta/models?pageSize=100";h["x-goog-api-key"]=k;}
-  msg.textContent="Loading models…";
-  fetch(url,{headers:h}).then(function(r){
-    return r.text().then(function(t){
-      if(!r.ok) throw new Error("HTTP "+r.status+" "+r.statusText+" from "+url+"\n\n"+t);
-      return JSON.parse(t);
-    });
-  }).then(function(j){
-    var list=(j.data||j.models||[]).filter(function(x){
-      return p!=="gemini"||(x.supportedGenerationMethods||[]).indexOf("generateContent")>-1;
-    }).map(function(x){return (x.id||x.name||"").replace(/^models\//,"");}).filter(Boolean).sort();
-    $("modelList").innerHTML=list.map(function(n){return '<option value="'+esc(n)+'">';}).join("");
-    msg.textContent=list.length+" models available to your key. Click the model box to pick one, then press Save.";
-  }).catch(function(e){msg.innerHTML='<div class="err">'+esc(errText(e))+"</div>";});
-});
-
-$("refresh").addEventListener("click",loadAll);
-loadSettings();
-loadAll();
-})();
-</script>
-</body>
-</html>
+  <h2>Depots: salt, trucks and drivers</h2>

@@ -1,1 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Winter Maintenance Decision-Support Dashboard — Duty Engineer Console</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-alt: #263349;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --ice: #60a5fa;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
 
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    header {
+      background: #0b1120;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge-internal {
+      background: #1d4ed8;
+      color: #dbeafe;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .brand p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      background: var(--panel-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover { background: #334155; border-color: #475569; }
+    button.primary {
+      background: #0284c7;
+      border-color: #0369a1;
+      color: #fff;
+    }
+    button.primary:hover { background: #0369a1; }
+    button.ai-btn {
+      background: #4f46e5;
+      border-color: #4338ca;
+      color: #fff;
+    }
+    button.ai-btn:hover { background: #4338ca; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    select, input[type="text"], input[type="number"] {
+      background: #0f172a;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+
+    .status-strip {
+      background: #131c31;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .live-stamp {
+      font-family: var(--mono);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    main {
+      max-width: 1520px;
+      margin: 0 auto;
+      padding: 18px 20px 40px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+    }
+    .kpi {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .kpi .label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .kpi .value {
+      font-size: 22px;
+      font-weight: 700;
+      margin-top: 4px;
+      font-family: var(--mono);
+    }
+    .kpi .sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 12px 16px;
+      background: rgba(15, 23, 42, 0.45);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .card-header h2 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .card-body { padding: 14px 16px; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 1080px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 9px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    th {
+      background: #162033;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: sticky;
+      top: 0;
+    }
+    tr:hover td { background: rgba(56, 189, 248, 0.04); }
+
+    .mono { font-family: var(--mono); }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .pill-treat { background: rgba(239, 68, 68, 0.18); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .pill-watch { background: rgba(245, 158, 11, 0.18); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .pill-hold { background: rgba(34, 197, 94, 0.16); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.35); }
+    .pill-short { background: rgba(239, 68, 68, 0.25); color: #fecaca; border: 1px solid #ef4444; }
+    .pill-p1 { background: #1e3a8a; color: #bfdbfe; }
+    .pill-p2 { background: #334155; color: #e2e8f0; }
+
+    .table-wrap { overflow-x: auto; }
+
+    .plan-box {
+      max-height: 360px;
+      overflow-y: auto;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      font-size: 13px;
+    }
+    .plan-box h1, .plan-box h2, .plan-box h3 {
+      color: var(--accent);
+      margin-top: 12px;
+      margin-bottom: 6px;
+    }
+    .plan-box h1:first-child, .plan-box h2:first-child { margin-top: 0; }
+    .plan-box ul { padding-left: 18px; margin: 6px 0; }
+    .plan-box li { margin-bottom: 4px; }
+    .plan-box code { background: #1e293b; padding: 1px 5px; border-radius: 4px; font-family: var(--mono); }
+
+    .ai-output {
+      background: #0f172a;
+      border: 1px solid #3730a3;
+      border-radius: 6px;
+      padding: 14px;
+      margin-top: 12px;
+      white-space: pre-wrap;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .edit-input {
+      width: 72px;
+      padding: 4px 6px;
+      font-family: var(--mono);
+      text-align: right;
+    }
+
+    .decision-select {
+      padding: 4px 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .spark-bar {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 22px;
+      min-width: 96px;
+    }
+    .spark-bar span {
+      flex: 1;
+      min-width: 3px;
+      border-radius: 1px;
+    }
+
+    .disclaimer-banner {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fde68a;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .error-banner {
+      background: rgba(239, 68, 68, 0.16);
+      border: 1px solid #ef4444;
+      color: #fecaca;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>
+      Winter Service Decision-Support Console
+      <span class="badge-internal">Council Internal Use Only</span>
+    </h1>
+    <p>Advisory synthesis of Open-Meteo road surface forecasts, live depot capacity, Winter Service Plan rules, and 5-winter history.</p>
+  </div>
+  <div class="controls">
+    <button class="primary" id="btnRefresh" onclick="loadAllData()">↻ Refresh Live Feeds</button>
+    <button onclick="resetDepotOverrides()">Reset Depot Edits</button>
+    <button onclick="exportEngineerLog()">Export Duty Engineer Log (CSV)</button>
+  </div>
+</header>
+
+<div class="status-strip">
+  <div>
+    <strong>Authority Notice:</strong> Automated outputs are <em>advisory recommendations only</em>. Final gritting authorization rests solely with the <strong>Duty Engineer</strong>.
+  </div>
+  <div class="live-stamp" id="liveTimestamp">Data fetched live at --:--:--</div>
+</div>
+
+<main>
+  <div id="errorBanner" class="error-banner"></div>
+
+  <!-- KPI Summary Strip -->
+  <section class="kpi-grid" id="kpiGrid">
+    <div class="kpi">
+      <div class="label">Routes Recommended for Treatment</div>
+      <div class="value" id="kpiTreat">-- / 10</div>
+      <div class="sub" id="kpiTreatSub">Awaiting forecast & plan evaluation</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Estimated Salt Required Tonight</div>
+      <div class="value" id="kpiSaltReq">-- t</div>
+      <div class="sub" id="kpiSaltAvail">Available across 5 depots: -- t</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Fleet & Driver Readiness</div>
+      <div class="value" id="kpiFleet">-- Trucks / -- Drivers</div>
+      <div class="sub" id="kpiFleetSub">Checking depot bottlenecks...</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Coldest Forecast Road Surface</div>
+      <div class="value" id="kpiMinGround">-- °C</div>
+      <div class="sub" id="kpiMinRoute">Lowest 24h soil_temperature_0cm</div>
+    </div>
+  </section>
+
+  <!-- Main Route Matrix & Recommendations -->
+  <section class="card">
+    <div class="card-header">
+      <h2>1. Tonight's Route Assessment & Duty Engineer Sign-Off (10 Routes)</h2>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <label style="font-size:12px; color:var(--muted);">Spread Rate Override (g/m²):
+          <input type="number" id="spreadRateInput" value="20" min="10" max="40" step="5" style="width:68px;" onchange="recomputeAll()" />
+        </label>
+        <label style="font-size:12px; color:var(--muted);">Road Width (m):
+          <input type="number" id="roadWidthInput" value="7.3" min="5" max="12" step="0.1" style="width:68px;" onchange="recomputeAll()" />
+        </label>
+        <button onclick="acceptAllRecommendations()">Copy Recommendations to Engineer Sign-Off</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div class="table-wrap">
+        <table id="routesTable">
+          <thead>
+            <tr>
+              <th>Route</th>
+              <th>Priority</th>
+              <th>Depot</th>
+              <th>Length</th>
+              <th>Min Air</th>
+              <th>Min Ground (0cm)</th>
+              <th>Hrs ≤ 0°C</th>
+              <th>Wetness Check (Rain / Dew Spread)</th>
+              <th>24h Ground Profile</th>
+              <th>Est. Salt</th>
+              <th>5-Winter History Analog</th>
+              <th>System Recommendation</th>
+              <th>Duty Engineer Decision</th>
+            </tr>
+          </thead>
+          <tbody id="routesTbody">
+            <tr><td colspan="13" style="text-align:center; color:var(--muted); padding:24px;">Loading routes, Open-Meteo 24h forecast, depot stock, and historical winters...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Depots + Winter Service Plan -->
+  <section class="two-col">
+    <div class="card">
+      <div class="card-header">
+        <h2>2. Five Depots — Live Salt, Spreaders & Drivers (Session-Editable)</h2>
+        <span style="font-size:12px; color:var(--muted);">Edit values below to simulate mid-shift breakdowns or deliveries</span>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Depot</th>
+                <th>Assigned Routes</th>
+                <th>Salt Stock (t)</th>
+                <th>Trucks Ready</th>
+                <th>Drivers Ready</th>
+                <th>Tonight Demand</th>
+                <th>Post-Run Balance</th>
+                <th>Capacity Status</th>
+              </tr>
+            </thead>
+            <tbody id="depotsTbody">
+              <tr><td colspan="8" style="text-align:center; color:var(--muted); padding:20px;">Loading tonight.csv...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>3. Winter Service Plan Rulebook (plan.md)</h2>
+        <span style="font-size:12px; color:var(--muted);">Authoritative council policy</span>
+      </div>
+      <div class="card-body">
+        <div class="plan-box" id="planContainer">Loading plan.md...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gemini Duty Engineer Briefing Generator -->
+  <section class="card">
+    <div class="card-header">
+      <h2>4. AI Duty Engineer Briefing Assistant (Optional Synthesis)</h2>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <select id="geminiModel">
+          <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+          <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+          <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+        </select>
+        <input type="text" id="engineerNoteInput" placeholder="Optional Duty Engineer context (e.g., Truck 2 at North Depot in workshop)..." style="width:320px; max-width:100%;" />
+        <button class="ai-btn" id="btnAskGemini" onclick="generateDutyBriefing()">Generate Duty Engineer Briefing</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="disclaimer-banner">
+        <span>Sends live forecast, depot stock, Winter Service Plan rules, and 5-winter historical analogs to Gemini for a structured operational recommendation. The Duty Engineer remains the sole decision-maker.</span>
+      </div>
+      <div id="aiBriefingOutput" class="ai-output" style="display:none;"></div>
+    </div>
+  </section>
+
+  <!-- 5-Winter History Explorer -->
+  <section class="card">
+    <div class="card-header">
+      <h2>5. Five-Winter Historical Evidence Explorer (history.csv)</h2>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <select id="histRouteFilter" onchange="renderHistoryTable()">
+          <option value="ALL">All Routes (R01–R10)</option>
+        </select>
+        <select id="histEventFilter" onchange="renderHistoryTable()">
+          <option value="ALL">All Nights</option>
+          <option value="INCIDENTS">Ice Incidents Reported (> 0)</option>
+          <option value="UNGRITTED_FREEZE">Ungritted & Ground ≤ 0°C</option>
+          <option value="STOCK_HELD">Held Back / No Salt</option>
+          <option value="SIMILAR">Similar to Tonight's Forecast (±1.5°C)</option>
+        </select>
+        <span id="histCountLabel" style="font-size:12px; color:var(--muted);">-- records</span>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0; max-height:380px; overflow-y:auto;">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Route</th>
+              <th>Priority</th>
+              <th>Depot</th>
+              <th>Min Air</th>
+              <th>Min Ground</th>
+              <th>Fcst Ground</th>
+              <th>Dew / Rain</th>
+              <th>Hrs ≤ 0°C</th>
+              <th>Gritted / Decision</th>
+              <th>Salt / Stock After</th>
+              <th>Ice Incidents & Crew Notes</th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody">
+            <tr><td colspan="12" style="text-align:center; color:var(--muted); padding:20px;">Loading history.csv...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const ENDPOINTS = {
+    tonight: 'https://bdaib-hub.pages.dev/data/winter/tonight.csv',
+    routes: 'https://bdaib-hub.pages.dev/data/winter/routes.csv',
+    forecast: 'https://api.open-meteo.com/v1/forecast?latitude=53.99,54.04,54.07,53.88,53.92,53.87,54.06,54.11,53.83,53.9&longitude=-7.345,-7.38,-7.44,-7.33,-6.98,-7.54,-7.09,-7.58,-7.08,-6.8&hourly=temperature_2m,soil_temperature_0cm,dew_point_2m,precipitation&forecast_hours=24&timezone=Europe%2FDublin',
+    plan: 'https://bdaib-hub.pages.dev/data/winter/plan.md',
+    history: 'https://bdaib-hub.pages.dev/data/winter/history.csv'
+  };
+
+  const GEMINI_API_KEY = '888AgB888';
+
+  const state = {
+    rawTonight: [],
+    depots: [], // session-editable copy
+    routes: [],
+    forecasts: [],
+    planText: '',
+    history: [],
+    routeEvaluations: [],
+    engineerDecisions: {}, // route_id -> 'PENDING' | 'AUTHORIZE GRIT' | 'STANDBY / MONITOR' | 'DO NOT TREAT'
+    fetchedAt: null
+  };
+
+  // Robust CSV parser supporting quoted fields with commas
+  function parseCSV(text) {
+    const rows = [];
+    let row = [];
+    let field = '';
+    let inQuotes = false;
+    const clean = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+
+    for (let i = 0; i < clean.length; i++) {
+      const ch = clean[i];
+      const next = clean[i + 1];
+      if (inQuotes) {
+        if (ch === '"' && next === '"') {
+          field += '"';
+          i++;
+        } else if (ch === '"') {
+          inQuotes = false;
+        } else {
+          field += ch;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === ',') {
+          row.push(field.trim());
+          field = '';
+        } else if (ch === '\n') {
+          row.push(field.trim());
+          rows.push(row);
+          row = [];
+          field = '';
+        } else {
+          field += ch;
+        }
+      }
+    }
+    if (field.length > 0 || row.length > 0) {
+      row.push(field.trim());
+      rows.push(row);
+    }
+    if (rows.length === 0) return [];
+    const headers = rows[0].map(h => h.replace(/^\uFEFF/, '').trim());
+    return rows.slice(1).filter(r => r.some(cell => cell !== '')).map(r => {
+      const obj = {};
+      headers.forEach((h, idx) => {
+        obj[h] = r[idx] !== undefined ? r[idx] : '';
+      });
+      return obj;
+    });
+  }
+
+  // Lightweight safe Markdown renderer for plan.md
+  function renderMarkdown(md) {
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const lines = md.split(/\r?\n/);
+    let html = '';
+    let inList = false;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) {
+        if (inList) { html += '</ul>'; inList = false; }
+        continue;
+      }
+      if (line.startsWith('### ')) {
+        if (inList) { html += '</ul>'; inList = false; }
+        html += `<h3>${formatInline(esc(line.slice(4)))}</h3>`;
+      } else if (line.startsWith('## ')) {
+        if (inList) { html += '</ul>'; inList = false; }
+        html += `<h2>${formatInline(esc(line.slice(3)))}</h2>`;
+      } else if (line.startsWith('# ')) {
+        if (inList) { html += '</ul>'; inList = false; }
+        html += `<h1>${formatInline(esc(line.slice(2)))}</h1>`;
+      } else if (/^[-*]\s+/.test(line)) {
+        if (!inList) { html += '<ul>'; inList = true; }
+        html += `<li>${formatInline(esc(line.replace(/^[-*]\s+/, '')))}</li>`;
+      } else {
+        if (inList) { html += '</ul>'; inList = false; }
+        html += `<p style="margin:6px 0;">${formatInline(esc(line))}</p>`;
+      }
+    }
+    if (inList) html += '</ul>';
+    return html;
+  }
+
+  function formatInline(s) {
+    return s
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>');
+  }
+
+  function formatHHMMSS(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
+  async function loadAllData() {
+    const btn = document.getElementById('btnRefresh');
+    const errBox = document.getElementById('errorBanner');
+    btn.disabled = true;
+    errBox.style.display = 'none';
+
+    try {
+      const cacheBust = `?_t=${Date.now()}`;
+      const [tonightRes, routesRes, forecastRes, planRes, historyRes] = await Promise.all([
+        fetch(ENDPOINTS.tonight + cacheBust),
+        fetch(ENDPOINTS.routes + cacheBust),
+        fetch(ENDPOINTS.forecast),
+        fetch(ENDPOINTS.plan + cacheBust),
+        fetch(ENDPOINTS.history + cacheBust)
+      ]);
+
+      if (!tonightRes.ok || !routesRes.ok || !forecastRes.ok || !planRes.ok || !historyRes.ok) {
+        throw new Error(`HTTP fetch failure (${tonightRes.status}/${routesRes.status}/${forecastRes.status}/${planRes.status}/${historyRes.status})`);
+      }
+
+      const [tonightTxt, routesTxt, forecastJson, planTxt, historyTxt] = await Promise.all([
+        tonightRes.text(),
+        routesRes.text(),
+        forecastRes.json(),
+        planRes.text(),
+        historyRes.text()
+      ]);
+
+      state.rawTonight = parseCSV(tonightTxt);
+      state.depots = normalizeDepots(state.rawTonight);
+      state.routes = normalizeRoutes(parseCSV(routesTxt));
+      state.forecasts = Array.isArray(forecastJson) ? forecastJson : [forecastJson];
+      state.planText = planTxt;
+      state.history = parseCSV(historyTxt);
+
+      // Update live fetch timestamp
+      const now = new Date();
+      state.fetchedAt = formatHHMMSS(now);
+      document.getElementById('liveTimestamp').textContent = `Data fetched live at ${state.fetchedAt}`;
+
+      // Render plan & populate history filter
+      document.getElementById('planContainer').innerHTML = renderMarkdown(state.planText);
+      populateHistoryFilter();
+
+      // Run analysis
+      recomputeAll();
+    } catch (err) {
+      console.error(err);
+      errBox.textContent = `Live feed error: ${err.message}. Check network access to bdaib-hub.pages.dev and api.open-meteo.com.`;
+      errBox.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function normalizeDepots(rows) {
+    return rows.map((r, idx) => {
+      const keys = Object.keys(r);
+      const name = r.depot || r.depot_name || r.name || r[keys[0]] || `Depot ${idx + 1}`;
+      const saltKey = keys.find(k => /salt/i.test(k));
+      const truckKey = keys.find(k => /truck|gritter|vehicle/i.test(k));
+      const driverKey = keys.find(k => /driver|crew|staff/i.test(k));
+      return {
+        depot: name,
+        salt_t: parseFloat(r[saltKey]) || 0,
+        trucks: parseInt(r[truckKey], 10) || 0,
+        drivers: parseInt(r[driverKey], 10) || 0,
+        raw: r
+      };
+    });
+  }
+
+  function normalizeRoutes(rows) {
+    return rows.map((r, idx) => {
+      const keys = Object.keys(r);
+      const id = r.route_id || r.id || r[keys[0]] || `R${String(idx + 1).padStart(2, '0')}`;
+      const name = r.route || r.route_name || r.name || id;
+      const priority = parseInt(r.priority || r.prio || '1', 10) || 1;
+      const lengthKm = parseFloat(r.length_km || r.length || r.km || '0') || 0;
+      const depot = r.depot || r.depot_name || '';
+      const lat = parseFloat(r.lat || r.latitude || '0');
+      const lon = parseFloat(r.lon || r.lng || r.longitude || '0');
+      return {
+        index: idx,
+        route_id: id,
+        route_name: name,
+        priority,
+        length_km: lengthKm,
+        depot,
+        lat,
+        lon,
+        raw: r
+      };
+    });
+  }
+
+  function resetDepotOverrides() {
+    state.depots = normalizeDepots(state.rawTonight);
+    recomputeAll();
+  }
+
+  function updateDepotField(index, field, val) {
+    const num = parseFloat(val);
+    if (!isNaN(num) && num >= 0) {
+      state.depots[index][field] = field === 'salt_t' ? num : Math.floor(num);
+      recomputeAll();
+    }
+  }
+
+  function setEngineerDecision(routeId, decision) {
+    state.engineerDecisions[routeId] = decision;
+    updateSummaryKPIs();
+  }
+
+  function acceptAllRecommendations() {
+    state.routeEvaluations.forEach(ev => {
+      if (ev.recCode === 'TREAT') {
+        state.engineerDecisions[ev.route.route_id] = 'AUTHORIZE GRIT';
+      } else if (ev.recCode === 'WATCH') {
+        state.engineerDecisions[ev.route.route_id] = 'STANDBY / MONITOR';
+      } else {
+        state.engineerDecisions[ev.route.route_id] = 'DO NOT TREAT';
+      }
+    });
+    renderRoutesTable();
+    updateSummaryKPIs();
+  }
+
+  function recomputeAll() {
+    const spreadRateGm2 = parseFloat(document.getElementById('spreadRateInput').value) || 20;
+    const roadWidthM = parseFloat(document.getElementById('roadWidthInput').value) || 7.3;
+
+    // 1. Evaluate each route against Open-Meteo 24h forecast & 5-winter history
+    const evals = state.routes.map((route, idx) => {
+      const fc = state.forecasts[idx] || state.forecasts[0];
+      const hourly = (fc && fc.hourly) ? fc.hourly : {};
+      const airArr = hourly.temperature_2m || [];
+      const groundArr = hourly.soil_temperature_0cm || [];
+      const dewArr = hourly.dew_point_2m || [];
+      const rainArr = hourly.precipitation || [];
+      const timeArr = hourly.time || [];
+
+      let minAir = Infinity;
+      let minGround = Infinity;
+      let minGroundTime = '';
+      let hoursAtOrBelowZero = 0;
+      let totalRainMm = 0;
+      let wetFreezeHours = 0;
+      let minDewSpreadAtCold = Infinity;
+
+      for (let h = 0; h < groundArr.length; h++) {
+        const g = groundArr[h];
+        const a = airArr[h];
+        const d = dewArr[h];
+        const p = rainArr[h] || 0;
+
+        if (typeof a === 'number' && a < minAir) minAir = a;
+        if (typeof g === 'number' && g < minGround) {
+          minGround = g;
+          minGroundTime = timeArr[h] ? timeArr[h].slice(11, 16) : '';
+        }
+        totalRainMm += p;
+
+        if (typeof g === 'number' && g <= 0) {
+          hoursAtOrBelowZero++;
+          const dewSpread = (typeof d === 'number') ? Math.abs(g - d) : 99;
+          if (dewSpread < minDewSpreadAtCold) minDewSpreadAtCold = dewSpread;
+          // Wet test from guide: rain, or dew point within 1 C of the ground
+          if (p > 0 || dewSpread <= 1.0) {
+            wetFreezeHours++;
+          }
+        }
+      }
+
+      if (!isFinite(minAir)) minAir = 0;
+      if (!isFinite(minGround)) minGround = 0;
+
+      // Also check overall wet surface condition across the night (rain > 0.1mm or dew within 1°C of ground when ground <= 1°C)
+      let anyWetCondition = totalRainMm >= 0.1;
+      let minDewSpreadOverall = Infinity;
+      for (let h = 0; h < groundArr.length; h++) {
+        const g = groundArr[h];
+        const d = dewArr[h];
+        if (typeof g === 'number' && typeof d === 'number') {
+          const sp = g - d;
+          if (sp < minDewSpreadOverall) minDewSpreadOverall = sp;
+          if (g <= 1.0 && Math.abs(g - d) <= 1.0) anyWetCondition = true;
+        }
+      }
+
+      // Salt required in tonnes: length_km * 1000m * width_m * spread_g_m2 / 1,000,000
+      // Higher spread rate (e.g. 20-40 g/m2) if heavy rain or deep freeze <= -2C
+      const effectiveSpread = (minGround <= -2.5 || totalRainMm >= 1.5) ? Math.max(spreadRateGm2, 20) : spreadRateGm2;
+      const saltNeededT = +((route.length_km * 1000 * roadWidthM * effectiveSpread) / 1e6).toFixed(2);
+
+      // Historical analog lookup for this route
+      const routeHist = state.history.filter(row =>
+        (row.route_id || '').toUpperCase() === route.route_id.toUpperCase() ||
+        (row.route || '').toLowerCase() === route.route_name.toLowerCase()
+      );
+      const similarNights = routeHist.filter(row => {
+        const hg = parseFloat(row.min_ground_c);
+        return !isNaN(hg) && Math.abs(hg - minGround) <= 1.5;
+      });
+      const similarIncidents = similarNights.filter(r => (parseInt(r.ice_incidents, 10) || 0) > 0);
+      const ungrittedIncidents = similarNights.filter(r =>
+        String(r.gritted).toLowerCase() !== 'true' &&
+        String(r.gritted).toLowerCase() !== 'yes' &&
+        String(r.gritted) !== '1' &&
+        (parseInt(r.ice_incidents, 10) || 0) > 0
+      );
+
+      // Advisory rule logic aligned with Winter Service Plan & road physics:
+      // Ground <= 0°C + wet/dew within 1°C -> TREAT
+      // Ground <= 0°C dry (marginal) or Ground <= +1.0°C with wet/dew risk (forecast error margin) -> WATCH / PRIORITY TREAT
+      let recCode = 'HOLD';
+      let recLabel = 'No Treatment Needed';
+      let recReason = `Min ground +${minGround.toFixed(1)}°C (above freezing)`;
+
+      if (minGround <= 0.0 && (anyWetCondition || wetFreezeHours > 0)) {
+        recCode = 'TREAT';
+        recLabel = 'Recommend Gritting';
+        recReason = `Ground ${minGround.toFixed(1)}°C (${hoursAtOrBelowZero}h ≤0°C) + moisture/dew risk`;
+      } else if (minGround <= 0.0 && !anyWetCondition) {
+        if (route.priority === 1 || ungrittedIncidents.length > 0) {
+          recCode = 'TREAT';
+          recLabel = 'Recommend Gritting (P1 / Hoar Risk)';
+          recReason = `Ground ${minGround.toFixed(1)}°C; P1/historical ice precaution`;
+        } else {
+          recCode = 'WATCH';
+          recLabel = 'Marginal — Monitor / Standby';
+          recReason = `Ground ${minGround.toFixed(1)}°C but dry dew spread (${minDewSpreadOverall.toFixed(1)}°C)`;
+        }
+      } else if (minGround <= 1.0 && anyWetCondition) {
+        recCode = 'WATCH';
+        recLabel = 'Marginal — Forecast Margin Watch';
+        recReason = `Ground +${minGround.toFixed(1)}°C & wet; 1°C forecast drop triggers ice`;
+      }
+
+      if (!state.engineerDecisions[route.route_id]) {
+        state.engineerDecisions[route.route_id] = 'PENDING';
+      }
+
+      return {
+        route,
+        groundArr,
+        minAir,
+        minGround,
+        minGroundTime,
+        hoursAtOrBelowZero,
+        totalRainMm,
+        anyWetCondition,
+        minDewSpreadOverall,
+        wetFreezeHours,
+        saltNeededT,
+        routeHist,
+        similarNights,
+        similarIncidents,
+        ungrittedIncidents,
+        recCode,
+        recLabel,
+        recReason
+      };
+    });
+
+    // 2. Check depot capacity constraints (salt, trucks, drivers) by priority order
+    const depotMap = {};
+    state.depots.forEach(d => {
+      depotMap[d.depot.toLowerCase()] = {
+        ...d,
+        assignedRoutes: [],
+        recommendedRoutes: [],
+        saltDemandT: 0,
+        trucksNeeded: 0,
+        shortfallNote: ''
+      };
+    });
+
+    // Sort evaluations by priority (1 first) to allocate scarce depot resources
+    const byPriority = [...evals].sort((a, b) => a.route.priority - b.route.priority);
+    byPriority.forEach(ev => {
+      const key = ev.route.depot.toLowerCase();
+      const dep = depotMap[key];
+      if (!dep) return;
+      dep.assignedRoutes.push(ev.route.route_id);
+
+      if (ev.recCode === 'TREAT') {
+        const availableUnits = Math.min(dep.trucks, dep.drivers);
+        const wouldUseSalt = dep.saltDemandT + ev.saltNeededT;
+        const wouldUseUnits = dep.trucksNeeded + 1;
+
+        if (wouldUseSalt > dep.salt_t) {
+          ev.recCode = 'SHORT';
+          ev.recLabel = 'Hold Back — Insufficient Salt';
+          ev.recReason = `Needs ${ev.saltNeededT}t; ${dep.depot} only has ${(dep.salt_t - dep.saltDemandT).toFixed(1)}t left`;
+        } else if (wouldUseUnits > availableUnits) {
+          ev.recCode = 'SHORT';
+          ev.recLabel = 'Hold Back — Truck/Driver Limit';
+          ev.recReason = `${dep.depot} capped at ${availableUnits} active spreader unit(s)`;
+        } else {
+          dep.recommendedRoutes.push(ev.route.route_id);
+          dep.saltDemandT = +wouldUseSalt.toFixed(2);
+          dep.trucksNeeded = wouldUseUnits;
+        }
+      }
+    });
+
+    state.routeEvaluations = evals;
+    state.depotSummary = Object.values(depotMap);
+
+    renderRoutesTable();
+    renderDepotsTable();
+    renderHistoryTable();
+    updateSummaryKPIs();
+  }
+
+  function renderSparkline(groundArr) {
+    if (!groundArr || !groundArr.length) return '';
+    const min = Math.min(...groundArr, -3);
+    const max = Math.max(...groundArr, 5);
+    const range = (max - min) || 1;
+    const bars = groundArr.map((v, i) => {
+      const pct = Math.max(12, Math.round(((v - min) / range) * 100));
+      const color = v <= 0 ? '#60a5fa' : (v <= 1.5 ? '#fbbf24' : '#475569');
+      return `<span title="Hour +${i}h: ${v.toFixed(1)}°C" style="height:${pct}%; background:${color};"></span>`;
+    }).join('');
+    return `<div class="spark-bar">${bars}</div>`;
+  }
+
+  function renderRoutesTable() {
+    const tbody = document.getElementById('routesTbody');
+    if (!state.routeEvaluations.length) return;
+
+    tbody.innerHTML = state.routeEvaluations.map(ev => {
+      const r = ev.route;
+      let pillClass = 'pill-hold';
+      if (ev.recCode === 'TREAT') pillClass = 'pill-treat';
+      else if (ev.recCode === 'WATCH') pillClass = 'pill-watch';
+      else if (ev.recCode === 'SHORT') pillClass = 'pill-short';
+
+      const currentDecision = state.engineerDecisions[r.route_id] || 'PENDING';
+      const wetText = ev.totalRainMm > 0
+        ? `Rain ${ev.totalRainMm.toFixed(1)}mm`
+        : (ev.anyWetCondition ? `Dew spread ${ev.minDewSpreadOverall.toFixed(1)}°C (Wet)` : `Dry (spread ${ev.minDewSpreadOverall.toFixed(1)}°C)`);
+
+      const histText = ev.similarNights.length
+        ? `${ev.similarNights.length} similar nights (${ev.similarIncidents.length} w/ ice)`
+        : `${ev.routeHist.length} past nights`;
+
+      return `
+        <tr>
+          <td>
+            <strong>${r.route_id}</strong><br/>
+            <span style="font-size:12px; color:var(--muted);">${r.route_name !== r.route_id ? r.route_name : `${r.lat.toFixed(2)}, ${r.lon.toFixed(2)}`}</span>
+          </td>
+          <td><span class="pill ${r.priority === 1 ? 'pill-p1' : 'pill-p2'}">P${r.priority}</span></td>
+          <td><strong>${r.depot}</strong></td>
+          <td class="mono">${r.length_km.toFixed(1)} km</td>
+          <td class="mono">${ev.minAir.toFixed(1)}°C</td>
+          <td class="mono" style="color:${ev.minGround <= 0 ? '#60a5fa' : (ev.minGround <= 1 ? '#fcd34d' : '#e2e8f0')}; font-weight:700;">
+            ${ev.minGround.toFixed(1)}°C <span style="font-size:11px; font-weight:400; color:var(--muted);">(${ev.minGroundTime})</span>
+          </td>
+          <td class="mono">${ev.hoursAtOrBelowZero} h</td>
+          <td style="font-size:12px;">${wetText}</td>
+          <td>${renderSparkline(ev.groundArr)}</td>
+          <td class="mono">${ev.saltNeededT.toFixed(2)} t</td>
+          <td style="font-size:12px; color:var(--muted);">${histText}</td>
+          <td>
+            <span class="pill ${pillClass}">${ev.recLabel}</span>
+            <div style="font-size:11px; color:var(--muted); margin-top:3px;">${ev.recReason}</div>
+          </td>
+          <td>
+            <select class="decision-select" onchange="setEngineerDecision('${r.route_id}', this.value)">
+              <option value="PENDING" ${currentDecision === 'PENDING' ? 'selected' : ''}>-- Awaiting Engineer --</option>
+              <option value="AUTHORIZE GRIT" ${currentDecision === 'AUTHORIZE GRIT' ? 'selected' : ''}>✓ Authorize Grit</option>
+              <option value="STANDBY / MONITOR" ${currentDecision === 'STANDBY / MONITOR' ? 'selected' : ''}>◉ Standby / Monitor</option>
+              <option value="DO NOT TREAT" ${currentDecision === 'DO NOT TREAT' ? 'selected' : ''}>✕ Do Not Treat</option>
+            </select>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderDepotsTable() {
+    const tbody = document.getElementById('depotsTbody');
+    if (!state.depots.length) return;
+
+    tbody.innerHTML = state.depots.map((d, idx) => {
+      const summary = (state.depotSummary || []).find(s => s.depot.toLowerCase() === d.depot.toLowerCase()) || {
+        assignedRoutes: [],
+        saltDemandT: 0,
+        trucksNeeded: 0
+      };
+      const remainingSalt = +(d.salt_t - summary.saltDemandT).toFixed(2);
+      const activeUnits = Math.min(d.trucks, d.drivers);
+      const isTight = remainingSalt < 10 || summary.trucksNeeded >= activeUnits && summary.trucksNeeded > 0;
+      const isDeficit = remainingSalt < 0 || summary.trucksNeeded > activeUnits;
+
+      let statusHtml = `<span class="pill pill-hold">OK</span>`;
+      if (isDeficit) statusHtml = `<span class="pill pill-short">Constrained</span>`;
+      else if (isTight) statusHtml = `<span class="pill pill-watch">Tight Margin</span>`;
+
+      return `
+        <tr>
+          <td><strong>${d.depot}</strong></td>
+          <td class="mono" style="font-size:12px;">${summary.assignedRoutes.join(', ') || '-'}</td>
+          <td>
+            <input class="edit-input" type="number" step="0.5" min="0" value="${d.salt_t}"
+              onchange="updateDepotField(${idx}, 'salt_t', this.value)" /> t
+          </td>
+          <td>
+            <input class="edit-input" type="number" step="1" min="0" value="${d.trucks}"
+              onchange="updateDepotField(${idx}, 'trucks', this.value)" />
+          </td>
+          <td>
+            <input class="edit-input" type="number" step="1" min="0" value="${d.drivers}"
+              onchange="updateDepotField(${idx}, 'drivers', this.value)" />
+          </td>
+          <td class="mono">${summary.saltDemandT.toFixed(2)} t / ${summary.trucksNeeded} unit(s)</td>
+          <td class="mono" style="color:${remainingSalt < 5 ? '#fca5a5' : '#86efac'};">${remainingSalt.toFixed(2)} t</td>
+          <td>${statusHtml}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function updateSummaryKPIs() {
+    const treatCount = state.routeEvaluations.filter(e => e.recCode === 'TREAT').length;
+    const watchCount = state.routeEvaluations.filter(e => e.recCode === 'WATCH').length;
+    const shortCount = state.routeEvaluations.filter(e => e.recCode === 'SHORT').length;
+    const authCount = Object.values(state.engineerDecisions).filter(v => v === 'AUTHORIZE GRIT').length;
+
+    document.getElementById('kpiTreat').textContent = `${treatCount} / ${state.routeEvaluations.length}`;
+    document.getElementById('kpiTreatSub').textContent =
+      `${watchCount} watch, ${shortCount} resource-capped | Engineer authorized: ${authCount}`;
+
+    const totalSaltReq = state.routeEvaluations
+      .filter(e => e.recCode === 'TREAT')
+      .reduce((acc, e) => acc + e.saltNeededT, 0);
+    const totalSaltAvail = state.depots.reduce((acc, d) => acc + d.salt_t, 0);
+
+    document.getElementById('kpiSaltReq').textContent = `${totalSaltReq.toFixed(1)} t`;
+    document.getElementById('kpiSaltAvail').textContent = `Available across ${state.depots.length} depots: ${totalSaltAvail.toFixed(1)} t`;
+
+    const totalTrucks = state.depots.reduce((acc, d) => acc + d.trucks, 0);
+    const totalDrivers = state.depots.reduce((acc, d) => acc + d.drivers, 0);
+    const activeDispatchable = state.depots.reduce((acc, d) => acc + Math.min(d.trucks, d.drivers), 0);
+
+    document.getElementById('kpiFleet').textContent = `${totalTrucks} Trucks / ${totalDrivers} Drivers`;
+    document.getElementById('kpiFleetSub').textContent = `Max simultaneous crews (min of trucks & drivers): ${activeDispatchable}`;
+
+    if (state.routeEvaluations.length) {
+      const coldest = [...state.routeEvaluations].sort((a, b) => a.minGround - b.minGround)[0];
+      document.getElementById('kpiMinGround').textContent = `${coldest.minGround.toFixed(1)} °C`;
+      document.getElementById('kpiMinRoute').textContent = `${coldest.route.route_id} (${coldest.route.depot}) at ${coldest.minGroundTime}`;
+    }
+  }
+
+  function populateHistoryFilter() {
+    const sel = document.getElementById('histRouteFilter');
+    const current = sel.value;
+    const ids = [...new Set(state.routes.map(r => r.route_id))];
+    sel.innerHTML = `<option value="ALL">All Routes (R01–R10)</option>` +
+      ids.map(id => `<option value="${id}">${id}</option>`).join('');
+    if (ids.includes(current)) sel.value = current;
+  }
+
+  function renderHistoryTable() {
+    const tbody = document.getElementById('historyTbody');
+    const routeFilter = document.getElementById('histRouteFilter').value;
+    const eventFilter = document.getElementById('histEventFilter').value;
+
+    const tonightMap = {};
+    state.routeEvaluations.forEach(ev => {
+      tonightMap[ev.route.route_id.toUpperCase()] = ev.minGround;
+    });
+
+    const filtered = state.history.filter(row => {
+      const rid = (row.route_id || '').toUpperCase();
+      if (routeFilter !== 'ALL' && rid !== routeFilter.toUpperCase()) return false;
+
+      const minG = parseFloat(row.min_ground_c);
+      const incidents = parseInt(row.ice_incidents, 10) || 0;
+      const gritted = ['true', 'yes', '1'].includes(String(row.gritted).toLowerCase());
+      const decision = String(row.decision || '').toLowerCase();
+
+      if (eventFilter === 'INCIDENTS') return incidents > 0;
+      if (eventFilter === 'UNGRITTED_FREEZE') return !gritted && !isNaN(minG) && minG <= 0;
+      if (eventFilter === 'STOCK_HELD') return decision.includes('salt') || decision.includes('held') || decision.includes('stock');
+      if (eventFilter === 'SIMILAR') {
+        const tonightG = tonightMap[rid];
+        return typeof tonightG === 'number' && !isNaN(minG) && Math.abs(minG - tonightG) <= 1.5;
+      }
+      return true;
+    });
+
+    document.getElementById('histCountLabel').textContent = `Showing ${Math.min(filtered.length, 150)} of ${filtered.length} matching records (${state.history.length} total)`;
+
+    const slice = filtered.slice(0, 150);
+    if (!slice.length) {
+      tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; color:var(--muted); padding:20px;">No historical records match the selected filter.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = slice.map(row => {
+      const incidents = parseInt(row.ice_incidents, 10) || 0;
+      const minG = parseFloat(row.min_ground_c);
+      return `
+        <tr style="${incidents > 0 ? 'background:rgba(239,68,68,0.08);' : ''}">
+          <td class="mono">${row.date || ''}</td>
+          <td><strong>${row.route_id || ''}</strong> <span style="color:var(--muted); font-size:11px;">${row.route || ''}</span></td>
+          <td>P${row.priority || ''}</td>
+          <td>${row.depot || ''}</td>
+          <td class="mono">${row.min_air_c ?? ''}°C</td>
+          <td class="mono" style="color:${minG <= 0 ? '#60a5fa' : 'inherit'};">${row.min_ground_c ?? ''}°C</td>
+          <td class="mono">${row.forecast_ground_c ?? ''}°C</td>
+          <td class="mono" style="font-size:12px;">Dew ${row.min_dewpoint_c ?? ''}°C / ${row.rain_mm ?? 0}mm</td>
+          <td class="mono">${row.hours_ground_at_or_below_0 ?? 0}h</td>
+          <td>
+            <span class="pill ${['true','yes','1'].includes(String(row.gritted).toLowerCase()) ? 'pill-hold' : 'pill-watch'}">
+              ${row.gritted}
+            </span>
+            <span style="font-size:12px; color:var(--muted); margin-left:4px;">${row.decision || ''}</span>
+          </td>
+          <td class="mono" style="font-size:12px;">${row.salt_t ?? 0}t / ${row.depot_stock_after_t ?? '-'}t</td>
+          <td style="font-size:12px;">
+            ${incidents > 0 ? `<strong style="color:#fca5a5;">${incidents} ice incident(s)</strong> — ` : ''}
+            <span style="color:var(--muted);">${row.notes || ''}</span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function generateDutyBriefing() {
+    const btn = document.getElementById('btnAskGemini');
+    const out = document.getElementById('aiBriefingOutput');
+    const model = document.getElementById('geminiModel').value;
+    const engineerNote = document.getElementById('engineerNoteInput').value.trim();
+
+    btn.disabled = true;
+    out.style.display = 'block';
+    out.textContent = `Synthesizing tonight's forecast, depot inventory, Winter Service Plan rules, and 5-winter historical analogs via ${model}...`;
+
+    const compactRoutes = state.routeEvaluations.map(ev => ({
+      route_id: ev.route.route_id,
+      priority: ev.route.priority,
+      depot: ev.route.depot,
+      length_km: ev.route.length_km,
+      min_air_c: +ev.minAir.toFixed(1),
+      min_ground_0cm_c: +ev.minGround.toFixed(1),
+      coldest_time: ev.minGroundTime,
+      hours_ground_lte_0: ev.hoursAtOrBelowZero,
+      rain_mm: +ev.totalRainMm.toFixed(1),
+      min_dew_spread_c: +ev.minDewSpreadOverall.toFixed(1),
+      wet_risk: ev.anyWetCondition,
+      est_salt_t: ev.saltNeededT,
+      rule_engine_rec: ev.recLabel,
+      rule_engine_reason: ev.recReason,
+      similar_historical_nights: ev.similarNights.length,
+      similar_historical_ice_incidents: ev.similarIncidents.length,
+      engineer_current_selection: state.engineerDecisions[ev.route.route_id]
+    }));
+
+    const promptText = `You are an internal council winter maintenance decision-support assistant preparing a concise, actionable operational briefing for the Duty Engineer.
+CRITICAL GOVERNANCE RULE: You NEVER make or issue final decisions—you only recommend options and highlight risks so the Duty Engineer can decide.
+
+DATA FETCHED LIVE AT: ${state.fetchedAt}
+
+1. WINTER SERVICE PLAN (AUTHORITATIVE RULEBOOK):
+${state.planText}
+
+2. CURRENT DEPOT CAPACITY (SESSION STATE):
+${JSON.stringify(state.depots, null, 2)}
+
+3. TONIGHT'S 10 ROUTES & 24H FORECAST SUMMARY:
+${JSON.stringify(compactRoutes, null, 2)}
+
+4. DUTY ENGINEER ADDITIONAL CONTEXT:
+${engineerNote || 'None provided.'}
+
+Provide a structured Duty Engineer Briefing with:
+- Executive Risk Summary (tonight's road surface minimum temperatures, moisture/dew point risk, and forecast uncertainty caveats).
+- Recommended Gritting Action Plan by Priority & Depot (explicitly noting any salt, truck, or driver bottlenecks and which lower-priority routes should be held back if stock is tight).
+- Historical Precedent Warnings (referencing similar past nights in history.csv where forecast errors or ungritted marginal nights caused ice incidents).
+- Explicit Sign-Off Prompt reminding the Duty Engineer what decisions require their authorization.`;
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': GEMINI_API_KEY
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }]
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error?.message || `API HTTP ${response.status}`);
+      }
+
+      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('\n') || 'No text returned from model.';
+      out.textContent = text;
+    } catch (err) {
+      out.textContent = `Gemini briefing request failed: ${err.message}\n\nNote: Rule-based recommendations in Section 1 remain fully operational offline/without external LLM calls.`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function exportEngineerLog() {
+    const headers = [
+      'fetched_at', 'route_id', 'priority', 'depot', 'length_km',
+      'min_air_c', 'min_ground_c', 'hours_lte_0', 'rain_mm',
+      'est_salt_t', 'system_recommendation', 'duty_engineer_decision'
+    ];
+    const rows = state.routeEvaluations.map(ev => [
+      state.fetchedAt || '',
+      ev.route.route_id,
+      ev.route.priority,
+      ev.route.depot,
+      ev.route.length_km,
+      ev.minAir.toFixed(1),
+      ev.minGround.toFixed(1),
+      ev.hoursAtOrBelowZero,
+      ev.totalRainMm.toFixed(1),
+      ev.saltNeededT.toFixed(2),
+      `"${ev.recLabel.replace(/"/g, '""')}"`,
+      `"${(state.engineerDecisions[ev.route.route_id] || 'PENDING').replace(/"/g, '""')}"`
+    ]);
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `winter-duty-engineer-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+  }
+
+  // Initialize on load
+  window.addEventListener('DOMContentLoaded', loadAllData);
+</script>
+</body>
+</html>
